@@ -311,7 +311,7 @@
         let cfg = null;
         const goals = new Map();
         const finMap = new Map(), pstartMap = new Map(), beginMap = new Map(), dl0Map = new Map(), rebases = []; let picks = [];
-        const done = new Map(), replans = new Map(), leave = new Set(), leaves = [], marks = new Map(), logs = [], adj = new Map(), logSum = new Map(), adjSum = new Map();
+        const done = new Map(), replans = new Map(), leave = new Set(), leaves = [], marks = new Map(), logs = [], poses = [], adj = new Map(), logSum = new Map(), adjSum = new Map();
         let nextGoalId = 1;
         for (const e of evs) {
             if (e.t === 'void' || voided.has(e.id)) continue;
@@ -336,6 +336,7 @@
                     break;
                 }
                 case 'pos': {   // "Last page I finished: N". It fixes where you are. It is never work done today.
+                    poses.push(e);
                     const n = dn(e.day || localKey(e.ts)), before = (logSum.get(e.goal) || 0) + (adjSum.get(e.goal) || 0), delta = e.page - before;
                     if (!adj.has(e.goal)) adj.set(e.goal, []); adj.get(e.goal).push([n, delta, e.page]); adjSum.set(e.goal, (adjSum.get(e.goal) || 0) + delta);
                     break;
@@ -449,7 +450,7 @@
 
         const pieces = buildPieces({ leave, goals, kidsOf, finMap, pstartMap, beginMap, dl0Map, rebases, cfg: c, jrf, todayN, now, done, picks, adj });
         if (pieces.list.length && jrf) thesis = pieces.thesis;
-        return { now, todayKey, todayN, pieces, events: evs, cfg: c, jrf, thesis, goals, tasks, byId, projects, pById, items, uncovered, kidsOf, life, leaves: leaves.filter(l => !voided.has(l.id)), leave, logs, nextGoalId, streak, marks };
+        return { now, todayKey, todayN, pieces, events: evs, cfg: c, jrf, thesis, goals, tasks, byId, projects, pById, items, uncovered, kidsOf, life, leaves: leaves.filter(l => !voided.has(l.id)), leave, logs, poses, nextGoalId, streak, marks };
     }
 
     const E = { dn, keyOf, localKey, weekday, addYears, derive, planPreview, perDayFor, normGoal, HORIZON, WORK_DEFAULT };

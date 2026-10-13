@@ -912,6 +912,7 @@
                 h += todayPanel(PP, T, J);
             }
         }
+        h += histCard();
         h += chainCard();
         if (prefs.lineOn) { const [q, k] = pickLine(); h += `<div class="daily-line" data-act="line"><span class="q">“</span><div class="t">${esc(q)}<span class="k">${esc(k)}</span></div></div>`; }
         if (PP.onTimeRun >= 3) h += `<div class="streak" style="margin:0 0 10px 4px">🔥 ${plural(PP.onTimeRun, 'piece')} in a row finished on time</div>`;
@@ -919,7 +920,7 @@
         else if (PP.list.length) {
             h += `<div class="list-header"><span>Working on</span><span class="hint">tap Done on the day you finish</span></div>`;
             h += PP.active.length ? PP.active.map(nowCard).join('') : `<div class="card"><p class="hint">${PP.upcoming[0] ? `Done for today. Next is <b>${esc(pTitle(PP.upcoming[0]))}</b>, starting ${fmtDNum(PP.upcoming[0].start)}. You can press Start on it if you want to begin sooner.` : 'Everything is done. Well earned.'}</p>${PP.upcoming[0] ? `<button class="btn-line" data-act="pc" data-id="${PP.upcoming[0].id}">Open it</button>` : ''}</div>`;
-            if (PP.upcoming.length) h += `<div class="card"><h3>Coming up</h3>${PP.upcoming.map(p => `<div class="ledger-row" data-act="pc" data-id="${p.id}" style="cursor:pointer"><span>${esc(pTitle(p))}${p.locked ? ' 🔒' : ''}<span class="muted"> · ${p.days} d</span></span><span class="muted">${fmtDNshort(p.start)}</span></div>`).join('')}</div>`;
+            if (PP.upcoming.length) h += foldCard(`<div class="card"><h3>Coming up</h3>${PP.upcoming.map(p => `<div class="ledger-row" data-act="pc" data-id="${p.id}" style="cursor:pointer"><span>${esc(pTitle(p))}${p.locked ? ' 🔒' : ''}<span class="muted"> · ${p.days} d</span></span><span class="muted">${fmtDNshort(p.start)}</span></div>`).join('')}</div>`, 'tdy-up', PP.upcoming.length <= 2, plural(PP.upcoming.length, 'piece'));
         }
         if (PP.list.length && D.cfg && D.cfg.order === 'custom') h += `<button class="btn-line btn-accent" data-act="pick" style="margin-bottom:14px">Choose my next piece</button>`;
         const active = D.tasks.filter(t => t.started && !t.finished).sort((a, b) => (b.status === 'behind') - (a.status === 'behind'));
@@ -1010,17 +1011,22 @@
         h += `<details class="acc" data-acc="bgp" ${accOpen('bgp')}><summary>Wallpaper photo and speed</summary><div class="acc-body"><button class="btn-line btn-accent" data-act="pick-bg">${hasBg ? 'Change' : 'Choose'} wallpaper photo</button>${hasBg ? '<button class="btn-line" data-act="clear-bg">Remove wallpaper</button>' : ''}${sw('lite', 'Lite mode', 'No blur or motion. Faster on older phones.')}</div></details></div>`;
         return h;
     }
+    // a card whose body folds under its title with a triangle (state remembered); falls back to the plain card
+    function foldCard(html, key, open, note) {
+        const m = html.match(/^<div class="card([^"]*)">\s*<h3>([\s\S]*?)<\/h3>([\s\S]*)<\/div>\s*$/); if (!m || !window.GAcc) return html;
+        return `<div class="card${m[1]}"><details class="gacc fc" data-gacc="${key}" ${GAcc.open(key, open) ? 'open' : ''}><summary><h3>${m[2]}</h3>${note ? `<span class="gacc-n">${note}</span>` : ''}</summary><div class="gacc-body">${m[3]}</div></details></div>`;
+    }
     function renderSet() {
         const pin = pinOn();
         let h = `<div class="card"><h3>Timeline</h3>${D.cfg ? `<div class="row"><span class="muted">JRF began</span><b class="num">${fmtK(D.cfg.start)}</b></div><div class="row"><span class="muted">Main work due</span><b class="num">${fmtDNum(D.jrf.targetN)}</b></div>` : ''}<button class="btn-line btn-accent" data-act="cfg">${D.cfg ? 'Edit timeline' : 'Set up timeline'}</button><button class="btn-line" data-act="leave">Declare leave days</button>
             <div class="sw-row"><div><div>Work order</div><div class="set-meta">Chapter by chapter (reading and drafting), or all reading then all drafting. All editing and proofreading always comes last.</div></div><select class="set-select" data-cfgorder>${[['chapter', 'Chapter by chapter'], ['phase', 'Phase by phase'], ['custom', 'Custom: I choose the next piece']].map(([v, l]) => `<option value="${v}" ${((D.cfg && D.cfg.order) || 'chapter') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>`;
         h += lookCard();
-        h += `<div class="card"><h3>Experience</h3>${sw('introOn', 'Opening screen')}${sw('greetOn', 'Greeting by name')}${sw('lineOn', 'Daily line')}${sw('animOn', 'Slow task glide')}${sw('lossOn', 'Show the cost of delay', 'Days lost from the buffer on Today.')}${sw('gainOn', 'Show the reward of early work', 'Days of freedom banked on Today.')}${sw('ageOn', 'Show my age on the Life tab', 'Needs your birth date in the timeline.')}${sw('remindOn', 'Evening and backup reminders', 'Banners in the app. A web app cannot ring while closed.')}</div>`;
-        h += dataCard();
+        h += foldCard(`<div class="card"><h3>Experience</h3>${sw('introOn', 'Opening screen')}${sw('greetOn', 'Greeting by name')}${sw('lineOn', 'Daily line')}${sw('animOn', 'Slow task glide')}${sw('lossOn', 'Show the cost of delay', 'Days lost from the buffer on Today.')}${sw('gainOn', 'Show the reward of early work', 'Days of freedom banked on Today.')}${sw('ageOn', 'Show my age on the Life tab', 'Needs your birth date in the timeline.')}${sw('remindOn', 'Evening and backup reminders', 'Banners in the app. A web app cannot ring while closed.')}</div>`, 'set-exp', false);
+        h += foldCard(dataCard(), 'set-data', false);
         if (window.GCompanion) h += window.GCompanion.settingsHTML();
         if (window.GFeel) h += window.GFeel.settingsHTML();
-        h += `<div class="card"><h3>Security</h3><p class="hint">The PIN keeps people out of the app. Backups are encrypted with their own password.</p>${pin ? sw('autoLock', 'Lock when I leave the app') : ''}<button class="btn-line" data-act="pin-set">${pin ? 'Change PIN' : 'Set a PIN'}</button>${pin ? '<button class="btn-line" data-act="pin-off">Remove PIN</button>' : ''}</div>`;
-        h += `<div class="card"><h3>Backup</h3><p class="hint">${prefs.lastBackup ? 'Last backup ' + fmtDT(prefs.lastBackup) : 'Not backed up yet.'} Share opens your phone's share sheet: choose Google Drive or Proton Drive.</p><button class="btn-line btn-accent" data-act="backup" data-m="share">Back up now (share)</button><button class="btn-line" data-act="backup" data-m="download">Save to Downloads</button><button class="btn-line" data-act="backup" data-m="plain">Share unencrypted copy</button><button class="btn-line" data-act="restore">Restore from a file</button>${sw('rememberPass', 'Remember backup password', 'Stored on this phone only.')}<button class="btn-line" data-act="erase" style="color:var(--warning)">Erase everything</button></div>`;
+        h += foldCard(`<div class="card"><h3>Security</h3><p class="hint">The PIN keeps people out of the app. Backups are encrypted with their own password.</p>${pin ? sw('autoLock', 'Lock when I leave the app') : ''}<button class="btn-line" data-act="pin-set">${pin ? 'Change PIN' : 'Set a PIN'}</button>${pin ? '<button class="btn-line" data-act="pin-off">Remove PIN</button>' : ''}</div>`, 'set-sec', false);
+        h += foldCard(`<div class="card"><h3>Backup</h3><p class="hint">${prefs.lastBackup ? 'Last backup ' + fmtDT(prefs.lastBackup) : 'Not backed up yet.'} Share opens your phone's share sheet: choose Google Drive or Proton Drive.</p><button class="btn-line btn-accent" data-act="backup" data-m="share">Back up now (share)</button><button class="btn-line" data-act="backup" data-m="download">Save to Downloads</button><button class="btn-line" data-act="backup" data-m="plain">Share unencrypted copy</button><button class="btn-line" data-act="restore">Restore from a file</button>${sw('rememberPass', 'Remember backup password', 'Stored on this phone only.')}<button class="btn-line" data-act="erase" style="color:var(--warning)">Erase everything</button></div>`, 'set-bak', true);
         $('s-set').innerHTML = h;
         const bb = $('bg-blur'), gb = $('glass-blur');
         if (bb) bb.oninput = () => { prefs.bgBlur = +bb.value; $('bg-blur-v').textContent = bb.value; applyTheme(); persist(); };
@@ -1172,28 +1178,91 @@
             if (err) err.textContent = ''; setDay(v); mark();
         };
     }
+    /* ---------- Log history: every entry by day, newest first. Edit an amount, delete a wrong entry (with Undo). Everything is recalculated. ---------- */
+    const logInfo = id => { const tk = P().tracks.find(x => x.id === id), it = D.items.get(id), g = D.goals.get(id); return { title: tk || !it ? (g ? g.title : 'Removed task') : it.title, unit: tk ? tk.unit : it ? it.unit : (g && g.qunit) || 'units' }; };
+    const histState = { filter: 0, days: 14 };
+    function histEntries() {
+        const out = [];
+        D.logs.forEach(l => { const day = l.day || E.localKey(l.ts); out.push({ k: 'log', e: l, id: l.id, goal: l.goal, day, n: E.dn ? E.dn(day) : 0, ts: l.ts }); });
+        (D.poses || []).forEach(l => { const day = l.day || E.localKey(l.ts); out.push({ k: 'pos', e: l, id: l.id, goal: l.goal, day, n: E.dn ? E.dn(day) : 0, ts: l.ts }); });
+        return out;
+    }
+    function histSummary() {
+        const all = histEntries().filter(x => x.k === 'log'); if (!all.length) return '';
+        const tk = todayKey(), td = all.filter(x => x.day === tk), by = {};
+        td.forEach(x => { const u = logInfo(x.goal).unit; by[u] = (by[u] || 0) + x.e.qty; });
+        return td.length ? 'Today: ' + Object.keys(by).map(u => N(by[u]) + ' ' + u).join(', ') + ' · ' + plural(td.length, 'entry').replace(/entrys/, 'entries') : 'Last entry: ' + fmtK(all.sort((a, b) => b.ts - a.ts)[0].day);
+    }
+    function histCard() { const sm = histSummary(); return sm ? `<div class="card tap" data-act="hist" data-tell="Everything you logged, by day. You can fix a wrong entry there."><h3>Log history</h3><div class="row"><span>${esc(sm)}</span><b>›</b></div></div>` : ''; }
+    function historySheet(filterId, keep) {
+        const prevScroll = keep ? $('sheet').scrollTop : 0;
+        let all = histEntries(); if (filterId !== undefined && !keep) { histState.filter = filterId && all.some(x => x.goal === filterId) ? filterId : 0; histState.days = 14; }
+        const goals = [...new Set(all.map(x => x.goal))].map(g => ({ g, title: logInfo(g).title })).sort((a, b) => a.title.localeCompare(b.title));
+        if (histState.filter && !goals.some(x => x.g === histState.filter)) histState.filter = 0;
+        if (histState.filter) all = all.filter(x => x.goal === histState.filter);
+        all.sort((a, b) => (b.n - a.n) || (b.ts - a.ts));
+        const minN = D.todayN - histState.days + 1, shown = all.filter(x => x.n >= minN), older = all.length - shown.length;
+        const days = []; shown.forEach(x => { let d = days[days.length - 1]; if (!d || d.day !== x.day) { d = { day: x.day, list: [] }; days.push(d); } d.list.push(x); });
+        const hd = d => { const by = {}, logs = d.list.filter(x => x.k === 'log'); logs.forEach(x => { const u = logInfo(x.goal).unit; by[u] = (by[u] || 0) + x.e.qty; });
+            const nm = keyDate(d.day).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', ''); return `${nm}${logs.length ? ' · ' + Object.keys(by).map(u => N(by[u]) + ' ' + u).join(', ') + ' · ' + (logs.length === 1 ? '1 entry' : logs.length + ' entries') : ''}`; };
+        const tm = ts => new Date(ts).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+        const row = x => { const inf = logInfo(x.goal);
+            if (x.k === 'pos') return `<div class="hl-row hl-pos" data-hid="${x.id}"><div class="hl-main"><span class="hl-t">${tm(x.ts)}</span> <b>${esc(inf.title)}</b><div class="hint">Note: last ${unitWord(inf.unit, 1)} finished was ${N(x.e.page)}. Not counted as work.</div></div><div class="hl-b"><button type="button" class="mini-btn" data-hact="del">Delete</button></div></div>`;
+            return `<div class="hl-row" data-hid="${x.id}"><div class="hl-main"><span class="hl-t">${tm(x.ts)}</span> <b>${esc(inf.title)}</b>${x.e.late ? '<span class="lg-late">added later</span>' : ''}<div class="hl-amt"><b>${N(x.e.qty)}</b> ${esc(inf.unit)}</div></div><div class="hl-b"><button type="button" class="mini-btn" data-hact="edit">Edit</button><button type="button" class="mini-btn" data-hact="del">Delete</button></div></div>`; };
+        sheet(`<h2>Log history</h2><p class="hint">Newest first. Fix a wrong amount or delete a wrong entry. Everything is recalculated.</p>
+            ${goals.length > 1 ? `<label class="field"><span>Show</span><select id="hl-f"><option value="0">All tasks</option>${goals.map(x => `<option value="${x.g}" ${x.g === histState.filter ? 'selected' : ''}>${esc(x.title)}</option>`).join('')}</select></label>` : ''}
+            ${days.length ? days.map(d => `<div class="hl-day">${esc(hd(d))}</div>${d.list.map(row).join('')}`).join('') : '<p class="hint">Nothing logged in this period yet.</p>'}
+            ${older > 0 ? `<button type="button" class="btn-line" id="hl-more">Show older (${older})</button>` : ''}
+            <div class="modal-actions"><button class="btn-secondary" data-act="close">Close</button></div>`, box => {
+            box.scrollTop = prevScroll;
+            const f = box.querySelector('#hl-f'); if (f) f.onchange = () => { histState.filter = +f.value; histState.days = 14; historySheet(undefined, true); };
+            const mo = box.querySelector('#hl-more'); if (mo) mo.onclick = () => { histState.days += 14; historySheet(undefined, true); };
+            box.querySelectorAll('.hl-row').forEach(r => {
+                const id = +r.dataset.hid, ent = all.find(x => x.id === id); if (!ent) return;
+                const del = r.querySelector('[data-hact="del"]'), ed = r.querySelector('[data-hact="edit"]'), e0 = ent.e;
+                del.onclick = () => {
+                    add({ t: 'void', target: id }); render(); historySheet(undefined, true); if (window.GFeel) GFeel.moment('down');
+                    const inf = logInfo(ent.goal);
+                    toast(ent.k === 'pos' ? 'Note deleted.' : `Deleted ${N(e0.qty)} ${inf.unit}. Everything is recalculated.`, () => { const c = Object.assign({}, e0); delete c.id; delete c.ts; add(c, e0.ts); render(); if ($('sheet-bg').classList.contains('show') && $('sheet').querySelector('.hl-day')) historySheet(undefined, true); });
+                };
+                if (ed) ed.onclick = () => {
+                    const amt = r.querySelector('.hl-amt'), inf = logInfo(ent.goal);
+                    amt.innerHTML = `<input type="number" inputmode="decimal" step="any" min="0" class="hl-in" value="${e0.qty}"> ${esc(inf.unit)} <button type="button" class="mini-btn btn-accent" data-hact="ok">Save</button>`;
+                    ed.style.display = 'none'; const inp = amt.querySelector('input'); inp.focus(); inp.select();
+                    amt.querySelector('[data-hact="ok"]').onclick = () => {
+                        const v = parseFloat(inp.value); if (!(v > 0)) { toast('Enter an amount above 0'); return; }
+                        if (v === e0.qty) { historySheet(undefined, true); return; }
+                        add({ t: 'void', target: id }); const c = Object.assign({}, e0); delete c.id; delete c.ts; c.qty = v; const ne = add(c, e0.ts); render(); historySheet(undefined, true); if (window.GFeel) GFeel.moment('save');
+                        toast(`Changed ${N(e0.qty)} to ${N(v)} ${inf.unit}. Everything is recalculated.`, () => { add({ t: 'void', target: ne.id }); const o = Object.assign({}, e0); delete o.id; delete o.ts; add(o, e0.ts); render(); if ($('sheet-bg').classList.contains('show') && $('sheet').querySelector('.hl-day')) historySheet(undefined, true); });
+                    };
+                };
+            });
+        });
+    }
     function trackLogSheet(id) {
         const t = P().tracks.find(x => x.id === id); if (!t) return;
         let amt = '', day = todayKey(); const dayKeys = [0, 1, 2].map(k => E.keyOf(D.todayN - k));
-        const isPg = /^(pages|steps|sections)$/.test(t.unit), base = Math.floor(t.done + 1e-9); let start = base + 1;
+        const isPg = /^(pages|steps|sections)$/.test(t.unit), base = Math.floor(t.done + 1e-9), pgLast = Math.min(t.total, base + 30);
         sheet(`<h2>${esc(D.goals.get(id).title)}</h2><div class="hint">${esc(pathOf(id))}</div>
-            <div class="amt-disp" id="l-amt"></div>${isPg ? `<div class="pg-wrap"><div class="pg-cap"><span>Tap the last ${unitWord(t.unit, 1)} you finished</span><button class="pg-edit" type="button" id="pg-edit">Last finished: <b>${N(base)}</b> · change</button></div><div class="pg-row" id="pg-row"></div></div>` : ''}${daySegHtml(dayKeys)}
-            <div class="grid2 mt" id="l-q"></div><div class="keypad" id="l-pad"></div><div class="error" id="l-e"></div>
+            <div class="amt-disp" id="l-amt"></div>${isPg ? `<div class="pg-wrap"><div class="pg-cap"><span>Tap the last ${unitWord(t.unit, 1)} you finished</span><button class="pg-edit" type="button" id="pg-edit">Last finished: <b>${N(base)}</b> · change</button></div><div class="pg-row" id="pg-row"></div><div class="pg-ind" id="pg-ind"><i></i></div><div class="pg-sw" id="pg-sw"></div></div>` : ''}${daySegHtml(dayKeys)}
+            <div class="grid2 mt" id="l-q"></div><div class="keypad" id="l-pad"></div><div class="error" id="l-e"></div><button type="button" class="pg-edit hl-link" data-act="hist" data-id="${id}">Log history</button>
             <div class="modal-actions"><button class="btn-secondary" data-act="close">Cancel</button><button class="btn-primary" id="l-go">Log</button></div>`, box => {
             const disp = box.querySelector('#l-amt'), pgRow = box.querySelector('#pg-row');
             const selOf = () => { const q = parseFloat(amt); return q > 0 && Math.abs(q - Math.round(q)) < 1e-9 ? base + Math.round(q) : 0; };
-            const drawPg = () => {
-                if (!pgRow) return; const sel = selOf(); let h = `<button type="button" class="pg-nav" data-nv="-1" ${start <= base + 1 ? 'disabled' : ''} aria-label="Earlier">‹</button>`;
-                for (let i = 0; i < 7; i++) { const n = start + i, over = n > t.total; h += `<button type="button" class="pg ${sel && n <= sel ? 'on' : ''}" data-p="${n}" data-i="${i}" ${over ? 'disabled' : ''} aria-label="${unitWord(t.unit, 1)} ${n}"><i>${n}</i></button>`; }
-                pgRow.innerHTML = h + `<button type="button" class="pg-nav" data-nv="1" ${start + 7 > t.total ? 'disabled' : ''} aria-label="Later">›</button>`;
-            };
+            // a strip of short, wide pages: about five show at once, swipe for up to 30 ahead. Built once so the swipe position is kept.
+            const pgInd = box.querySelector('#pg-ind'), pgSw = box.querySelector('#pg-sw');
+            if (pgRow) {
+                let h = ''; for (let n = base + 1; n <= pgLast; n++) h += `<button type="button" class="pg" data-p="${n}" data-i="${n - base - 1}" aria-label="${unitWord(t.unit, 1)} ${n}"><i>${n}</i></button>`;
+                pgRow.innerHTML = h;
+                const ind = () => { const w = pgRow.scrollWidth, c = pgRow.clientWidth; if (!pgInd) return; if (w <= c + 2) { pgInd.style.display = 'none'; if (pgSw) pgSw.textContent = ''; return; } const f = c / w, x = pgRow.scrollLeft / (w - c); pgInd.firstChild.style.width = (f * 100).toFixed(1) + '%'; pgInd.firstChild.style.left = (x * (1 - f) * 100).toFixed(1) + '%'; };
+                pgRow.addEventListener('scroll', ind, { passive: true }); setTimeout(ind, 30); if (pgSw && pgLast - base > 5) pgSw.textContent = 'Swipe sideways for more ' + t.unit + ' (up to ' + N(pgLast) + ')';
+            }
+            const drawPg = () => { if (!pgRow) return; const sel = selOf(); pgRow.querySelectorAll('.pg').forEach(b => b.classList.toggle('on', !!sel && +b.dataset.p <= sel)); };
             if (pgRow) {
                 pgRow.onclick = e => {
-                    const nv = e.target.closest('[data-nv]'), pb = e.target.closest('[data-p]');
-                    if (nv) { start = Math.max(base + 1, start + 7 * +nv.dataset.nv); drawPg(); return; }
-                    if (!pb) return; const n = +pb.dataset.p, sel = selOf();
+                    const pb = e.target.closest('[data-p]'); if (!pb) return; const n = +pb.dataset.p, sel = selOf();
                     amt = sel === n ? '' : String(n - base); upd();
-                    if (sel !== n && window.GFeel) GFeel.moment('turn', +pb.dataset.i);
+                    if (sel !== n && window.GFeel) GFeel.moment('turn', (+pb.dataset.i) % 7);
                 };
                 const pe = box.querySelector('#pg-edit'); if (pe) pe.onclick = () => { closeSheet(); setTimeout(() => posSheet(id), 60); };
             }
@@ -1424,7 +1493,7 @@
             <div class="amt-disp" id="l-amt"></div>
             ${daySegHtml(dayKeys)}
             <div class="grid2 mt" id="l-q"></div>
-            <div class="keypad" id="l-pad"></div><div class="error" id="l-e"></div>
+            <div class="keypad" id="l-pad"></div><div class="error" id="l-e"></div><button type="button" class="pg-edit hl-link" data-act="hist" data-id="${taskId || itemId || 0}">Log history</button>
             <div class="modal-actions"><button class="btn-secondary" data-act="close">Cancel</button><button class="btn-primary" id="l-go">Log</button></div>`, box => {
             const disp = box.querySelector('#l-amt');
             const sel = () => D.items.get(+(box.querySelector('#l-it') ? val(box, '#l-it') : selId)) || null;
@@ -1541,6 +1610,7 @@
             case 'close': closeSheet(); break;
             case 'cfg': cfgSheet(); break;
             case 'tlog': trackLogSheet(id); break;
+            case 'hist': closeSheet(); setTimeout(() => historySheet(id || 0), 60); break;
             case 'tset': trackSheet(id); break;
             case 'split': splitSheet(id); break;
             case 'pick': closeSheet(); setTimeout(pickSheet, 60); break;

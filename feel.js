@@ -85,6 +85,41 @@
     }, { passive: true, capture: true });
     document.addEventListener('click', unlock, { passive: true, capture: true });
 
+
+    // ---------- accidental-touch guards: sliders move only on a deliberate drag of the thumb; switches ignore a swipe
+    (function guards() {
+      try {
+        const css = document.createElement('style'); css.textContent = 'input[type=range] { touch-action: pan-y; } .gacc { border-top: 1px solid var(--hairline, rgba(120,130,150,.22)); margin-top: 10px; } .gacc > summary { list-style: none; cursor: pointer; padding: 12px 0 4px; display: flex; align-items: center; gap: 8px; font-weight: 600; -webkit-tap-highlight-color: transparent; } .gacc > summary::-webkit-details-marker { display: none; } .gacc > summary::before { content: "\\25B8"; display: inline-block; width: 1em; color: var(--text-muted, #667); transition: transform .18s ease; } .gacc[open] > summary::before { transform: rotate(90deg); } .gacc > summary .gacc-n { margin-left: auto; font-weight: 400; font-size: .85rem; color: var(--text-muted, #667); } .gacc-body { padding-bottom: 6px; } body.still .gacc > summary::before, html.lite .gacc > summary::before { transition: none; }';
+        (document.head || document.documentElement).appendChild(css);
+        let dn = null, sw = null;
+        const isR = el => el && el.tagName === 'INPUT' && el.type === 'range';
+        document.addEventListener('pointerdown', e => {
+            const el = e.target; sw = { x: e.clientX, y: e.clientY, moved: false };
+            if (!isR(el)) { dn = null; return; }
+            const r = el.getBoundingClientRect(), mn = +el.min || 0, mx = el.max === '' ? 100 : +el.max, f = mx > mn ? (+el.value - mn) / (mx - mn) : 0, tx = r.left + 12 + f * Math.max(0, r.width - 24);
+            dn = { el, x: e.clientX, y: e.clientY, v: el.value, on: Math.abs(e.clientX - tx) <= 30, armed: false };
+            if (dn.on) { if (e.pointerType === 'mouse') dn.armed = true; else dn.t = setTimeout(() => { if (dn) dn.armed = true; }, 110); }
+        }, true);
+        document.addEventListener('pointermove', e => {
+            if (sw && Math.hypot(e.clientX - sw.x, e.clientY - sw.y) > 8) sw.moved = true;
+            if (dn && dn.on && !dn.armed) { const ax = Math.abs(e.clientX - dn.x), ay = Math.abs(e.clientY - dn.y); if (ax > 6 && ax > ay * 1.3) dn.armed = true; }
+        }, true);
+        const up = () => { if (dn) { clearTimeout(dn.t); const d = dn; setTimeout(() => { if (dn === d) dn = null; }, 0); } };
+        document.addEventListener('pointerup', up, true); document.addEventListener('pointercancel', up, true);
+        const stop = e => { if (isR(e.target) && dn && dn.el === e.target && !dn.armed) { e.target.value = dn.v; e.stopImmediatePropagation(); e.stopPropagation(); } };
+        document.addEventListener('input', stop, true); document.addEventListener('change', stop, true);
+        document.addEventListener('click', e => { const t = e.target; if (sw && sw.moved && t && t.closest && t.closest('label.switch, .switch')) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+        // remembered open/closed sections
+        const KEY = 'ga_state';
+        const st = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { return {}; } };
+        root.GAcc = {
+            open: (k, d) => { const o = st(); return k in o ? !!o[k] : !!d; },
+            sec: (k, title, body, d, note) => `<details class="gacc" data-gacc="${k}" ${root.GAcc.open(k, d) ? 'open' : ''}><summary>${title}${note ? `<span class="gacc-n">${note}</span>` : ''}</summary><div class="gacc-body">${body}</div></details>`
+        };
+        document.addEventListener('toggle', e => { const d = e.target; if (d && d.matches && d.matches('details[data-gacc]')) { const o = st(); o[d.dataset.gacc] = d.open ? 1 : 0; try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (x) {} } }, true);
+      } catch (e) {}
+    })();
+
     // ---------- the instant-save button (bottom left, within the thumb's reach)
     let btn = null, pop = null, popT = null, cb = {};
     function saveButton(o) {
@@ -127,13 +162,15 @@ html.lite .gf-save, html.lite .gf-pop { -webkit-backdrop-filter: none; backdrop-
     function settingsHTML() {
         const p = load(), opt = (v, t, cur) => `<option value="${v}" ${cur === v ? 'selected' : ''}>${t}</option>`;
         const row = (k, t, d, on) => `<div class="gf-row"><div class="sw-row" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><span>${t}${d ? `<span class="hint" style="display:block">${d}</span>` : ''}</span><label class="switch"><input type="checkbox" data-gf="${k}" ${on ? 'checked' : ''}><i></i></label></div></div>`;
-        return `<div class="card gf-set"><h3>Sounds and vibration</h3><p class="hint">Short sounds mark real moments, never longer than 3 seconds. Your phone plays them at media volume.</p>
-${row('snd', 'Sounds', 'Rising notes for a gain, a soft fall for an undo.', p.snd)}
+        const A = root.GAcc ? root.GAcc.sec : (k, t, bd) => bd;
+        const snd = `${row('snd', 'Sounds', 'Rising notes for a gain, a soft fall for an undo.', p.snd)}
 <div class="gf-row"><div>Volume: <b data-gf-out="vol">${p.vol}</b>%</div><input type="range" min="0" max="100" value="${p.vol}" data-gf="vol"><div class="gf-lbl"><span>Quiet</span><span>Louder</span></div></div>
-${row('night', 'Quiet at night', 'No sounds between 10 pm and 7 am.', p.night)}
-${row('vib', 'Vibration', 'A different feel for buttons, bars, numbers and the character.', p.vib)}
-<div class="gf-row"><div>Vibration strength</div><select class="set-select" data-gf="vs">${opt('low', 'Light', p.vs)}${opt('mid', 'Medium', p.vs)}${opt('high', 'Strong', p.vs)}</select></div>
-${row('save', 'Save button', 'A small round button at the bottom left. Tap it to confirm that everything is saved.', p.save)}
+${row('night', 'Quiet at night', 'No sounds between 10 pm and 7 am.', p.night)}`;
+        const vib = `${row('vib', 'Vibration', 'A different feel for buttons, bars, numbers and the character.', p.vib)}
+<div class="gf-row"><div>Vibration strength</div><select class="set-select" data-gf="vs">${opt('low', 'Light', p.vs)}${opt('mid', 'Medium', p.vs)}${opt('high', 'Strong', p.vs)}</select></div>`;
+        const sv = row('save', 'Save button', 'A small round button at the bottom left. Tap it to confirm that everything is saved.', p.save);
+        return `<div class="card gf-set"><h3>Sounds and vibration</h3><p class="hint">Short sounds mark real moments, never longer than 3 seconds. Your phone plays them at media volume.</p>
+${A('gf-snd', 'Sounds', snd, true)}${A('gf-vib', 'Vibration', vib, false)}${A('gf-sv', 'Save button', sv, false)}
 <button class="btn-line" data-gf-act="hear">Hear the sounds</button><button class="btn-line" data-gf-act="feel">Feel the vibration</button><div class="hint" id="gf-status">${nightNow() && p.night ? 'It is night, so sounds are paused. Switch off "Quiet at night" to hear them now.' : ''}</div></div>`;
     }
     document.addEventListener('input', e => { const el = e.target && e.target.closest && e.target.closest('[data-gf]'); if (!el || el.type !== 'range') return; const v = +el.value, out = document.querySelector(`[data-gf-out="${el.dataset.gf}"]`); if (out) out.textContent = v; set({ [el.dataset.gf]: v }); });
