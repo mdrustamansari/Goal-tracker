@@ -114,3 +114,6 @@ v5.14 - Page icons are shorter and wider, like real pages. About five show at on
       Companion: new "Colour" setting, Classic or Shifting spectrum (two or three soft colours drifting; speed Slow, Calm or Lively). Off by default. In Lite mode or with reduced motion it keeps one colour a day.
       Cache v5-14.
       Credits: the lens-flare textures are resized and softened from three.js examples (MIT License, Copyright (c) three.js authors, https://github.com/mrdoob/three.js).
+
+v5.15 - Companion effects. Parts of the spectre body now fade in and out softly, like light through glass (never the face). A soft band of light and a soft band of shadow travel round the outline of every character, and parts of the outline fade away. Every 10 to 20 seconds the brightest part of the outline "catches the light" with a short flare. Settings, Circle Companion: "Glass effects" (Rich, Light, Off), "Lens flare style" (Soft or Photographic, a real starburst from the owner's own image), "Catch the light" on or off. Lite mode and reduced motion switch it all off.
+      New: "Movement style when it avoids text" (Springy, Glide, Float, Hop, Dart) and "Speed of that movement" (Slow, Normal, Fast). Cache v5-15.
