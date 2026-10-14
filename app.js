@@ -26,7 +26,7 @@
         introOn: true, greetOn: true, lineOn: true, animOn: true, lossOn: true, gainOn: true,
         remindOn: true, remindHour: 21, remindSnooze: null, lastBackup: null,
         lite: false, privacy: false, ageOn: false, autoLock: true, rememberPass: false, pass: '',
-        look: 'paper', p: {}, acc: [], defDays: {}, open: [], orbMode: 'header', learnOn: true
+        look: 'flagship', accent: 'sapphire', glow: false, flFont: 'system', follow: false, lastLight: null, lastDark: null, p: {}, acc: [], defDays: {}, open: [], orbMode: 'header', learnOn: true
     });
     let events = [], prefs = PREF_DEFAULT(), nextId = 1, D = null, screen = 'today', storageOK = true;
 
@@ -47,6 +47,8 @@
     function initStore() {
         const ev = load(K_EV), pf = load(K_PREF);
         if (pf && typeof pf === 'object') prefs = Object.assign(PREF_DEFAULT(), pf);
+        // v5.16: the Flagship theme becomes the default once. An untouched Paper look moves to it; a customised Paper page stays.
+        if (!prefs.flagshipV) { prefs.flagshipV = 1; if (pf && (pf.look === 'paper' || !pf.look) && !(pf.p && Object.keys(pf.p).length)) prefs.look = 'flagship'; try { localStorage.setItem(K_PREF, JSON.stringify(prefs)); } catch (e) {} }
         if (Array.isArray(ev)) setEvents(ev);
     }
 
@@ -66,12 +68,19 @@
     function applyTheme() {
         const id = themeId(), root = document.documentElement;
         root.setAttribute('data-theme', id);
-        document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', (m.getAttribute('media') || '').indexOf('dark') >= 0 ? THEMES[id].mD : THEMES[id].mL));
+        const fx = GLook.FIXED[prefs.look], base = !fx ? null : ({ flagship: prefs.accent === 'gold' ? '#f7f6f2' : '#f6f7fa', flagshipd: prefs.accent === 'gold' ? '#18181a' : '#17191d', royal: '#0e0b17', midnight: '#07130e', deepocean: '#04121f', ember: '#170c0b', graphite: '#131415' })[prefs.look];
+        document.querySelectorAll('meta[name="theme-color"]').forEach(m => m.setAttribute('content', base || THEMES[id].mL));
                 root.classList.toggle('lite', !!prefs.lite);
         root.classList.toggle('pm', !!prefs.privacy);
         root.style.setProperty('--glass-blur', prefs.glassBlur + 'px');
         applyBackground();
-        try { GLook.apply(prefs, { dark: !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches), hasBg: root.classList.contains('has-bg'), lite: !!prefs.lite }); } catch (e) {}
+        try { GLook.apply(prefs, { hasBg: root.classList.contains('has-bg'), lite: !!prefs.lite }); } catch (e) {}
+    }
+    // "Follow my phone": only when the phone changes (or on switching it on, or at start) do we go to the last light or last dark theme used
+    function phoneDark() { try { return !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches); } catch (e) { return false; } }
+    function followNow() {
+        if (!prefs.follow) return; GLook.remember(prefs);
+        const t = GLook.followTarget(prefs, phoneDark()); if (t !== prefs.look) { prefs.look = t; persist(); applyTheme(); if (typeof render === 'function' && D) render(); }
     }
     const hex2rgb = h => { h = h.trim().replace('#', ''); if (h.length === 3) h = h.split('').map(x => x + x).join(''); const n = parseInt(h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
     const mixRGB = (x, y, t) => x.map((v, i) => Math.round(v + (y[i] - v) * t));
@@ -987,17 +996,26 @@
     }
 
     /* ---------- Settings: look ---------- */
-    const LOOKS = () => [['paper', 'Paper', '#f4efe0'], ['aurora', 'Aurora', 'linear-gradient(135deg,#7fd6ff,#b9a6ff 60%,#ffd9a8)']].concat(Object.keys(GLook.NATURE).map(k => { const n = GLook.NATURE[k]; return [k, n.label, `linear-gradient(160deg,${n.L[0]},${n.L[1]})`]; }));
+    const LIGHT_LOOKS = () => [['flagship', GLook.FIXED.flagship.label, GLook.FIXED.flagship.sw], ['paper', 'Paper', '#f4efe0'], ['aurora', 'Aurora', 'linear-gradient(135deg,#7fd6ff,#b9a6ff 60%,#ffd9a8)']].concat(Object.keys(GLook.NATURE).map(k => { const n = GLook.NATURE[k]; return [k, n.label, `linear-gradient(160deg,${n.L[0]},${n.L[1]})`]; }));
+    const DARK_LOOKS = () => Object.keys(GLook.FIXED).filter(k => GLook.FIXED[k].dark).map(k => [k, GLook.FIXED[k].label, GLook.FIXED[k].sw]);
+    const lookGrid = list => `<div class="look-grid">${list.map(([k, l, c]) => `<button class="lk ${(prefs.look || 'flagship') === k ? 'on' : ''}" data-act="look" data-v="${k}" style="--sw:${c}">${l}</button>`).join('')}</div>`;
     const accOpen = k => (prefs.acc || []).indexOf(k) >= 0 ? 'open' : '';
     const pv = k => (prefs.p && prefs.p[k] !== undefined) ? prefs.p[k] : GLook.PAPER_DEFAULTS[k];
     const prSlider = (k, l, min, max, step, unit) => `<div class="bg-row"><span>${l}</span><input type="range" data-pr="${k}" min="${min}" max="${max}" step="${step}" value="${pv(k)}"><b class="bg-val" id="pr-${k}">${pv(k)}${unit || ''}</b></div>`;
     const prSelect = (k, l, opts) => `<div class="sw-row"><span>${l}</span><select class="set-select" data-prs="${k}">${opts.map(([v, t]) => `<option value="${v}" ${pv(k) === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`;
     const prSwitch = (k, t) => `<div class="sw-row"><span>${t}</span><label class="switch"><input type="checkbox" data-prc="${k}" ${pv(k) ? 'checked' : ''}><i></i></label></div>`;
     function lookCard() {
-        const look = prefs.look || 'paper', dark = !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+        const look = prefs.look || 'flagship', dark = GLook.isDarkLook(look), isFl = look === 'flagship' || look === 'flagshipd';
         let hasBg = false; try { hasBg = !!localStorage.getItem(K_BG); } catch (e) {}
-        let h = `<div class="card"><h3>Look</h3><div class="look-grid">${LOOKS().map(([k, l, c]) => `<button class="lk ${look === k ? 'on' : ''}" data-act="look" data-v="${k}" style="--sw:${c}">${l}</button>`).join('')}</div>`;
-        h += `<details class="acc" data-acc="aur" ${accOpen('aur')}><summary>Aurora colours</summary><div class="acc-body"><div class="sw-row"><span>Palette</span><select class="set-select" data-pref="theme">${[['auto', 'Automatic (by time of day)']].concat(Object.keys(THEMES).map(k => [k, THEMES[k].label + (THEMES[k].part ? ' · ' + THEMES[k].part : '')])).map(([k, l]) => `<option value="${k}" ${prefs.theme === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div><p class="hint">Sets the accent colours for Aurora and Paper.</p></div></details>`;
+        let h = `<div class="card"><h3>Look</h3>` + GAcc.sec('look-l', 'Light themes', lookGrid(LIGHT_LOOKS()), !dark) + GAcc.sec('look-d', 'Dark themes', lookGrid(DARK_LOOKS()), dark);
+        h += sw('follow', 'Follow my phone', 'Light or dark follows your phone. It goes to the last light or dark theme you used. Each theme stays exactly as designed.');
+        if (isFl) {
+            const acc = prefs.accent === 'gold' ? 'gold' : 'sapphire';
+            h += GAcc.sec('look-fl', 'Flagship options', `<div class="sw-row"><span>Accent colour</span><div class="acc-sw"><button type="button" class="swatch ${acc === 'sapphire' ? 'on' : ''}" data-act="accent" data-v="sapphire" style="--sw:linear-gradient(135deg,#5c9fe6,#3560bd)">Sapphire</button><button type="button" class="swatch ${acc === 'gold' ? 'on' : ''}" data-act="accent" data-v="gold" style="--sw:linear-gradient(135deg,#f3d36e,#c9a43a)">Gold</button></div></div>
+                ${sw('glow', 'Soft glow', 'A faint blue (or gold) glow on the lower edge of cards, and on buttons and progress bars.')}
+                <div class="sw-row"><span>Letters</span><select class="set-select" data-pref="flFont">${GLook.FONTS.map(([v, t]) => `<option value="${v}" ${(prefs.flFont || 'system') === v ? 'selected' : ''}>${t}</option>`).join('')}</select></div>`, true);
+        }
+        if (look === 'aurora' || look === 'paper') h += `<details class="acc" data-acc="aur" ${accOpen('aur')}><summary>Aurora colours</summary><div class="acc-body"><div class="sw-row"><span>Palette</span><select class="set-select" data-pref="theme">${[['auto', 'Automatic (by time of day)']].concat(Object.keys(THEMES).map(k => [k, THEMES[k].label + (THEMES[k].part ? ' · ' + THEMES[k].part : '')])).map(([k, l]) => `<option value="${k}" ${prefs.theme === k ? 'selected' : ''}>${l}</option>`).join('')}</select></div><p class="hint">Sets the accent colours for Aurora and Paper.</p></div></details>`;
         if (look === 'paper') {
             const cur = pv('paperColor'), custom = pv('paperCustom');
             h += `<details class="acc" data-acc="pcol" ${accOpen('pcol')}><summary>Page colour</summary><div class="acc-body"><div class="sw-grid">${GLook.PAPERS.map(([k, l, lc, dc]) => `<button class="swatch ${cur === k ? 'on' : ''}" data-act="pr-set" data-k="paperColor" data-v="${k}" style="--sw:${dark ? dc : lc}">${l}</button>`).join('')}<button class="swatch ${cur === 'custom' ? 'on' : ''}" data-act="pr-set" data-k="paperColor" data-v="custom" style="--sw:${custom}">Custom</button></div>
@@ -1006,7 +1024,7 @@
                 ${pv('pattern') === 'plain' ? '' : prSlider('dotGap', 'Spacing', 10, 44, 1, ' px') + (pv('pattern') === 'dots' ? prSlider('dotSize', 'Dot size', 0.4, 3, 0.1, ' px') : '') + prSlider('dotAlpha', 'Opacity', 3, 70, 1, '%') + prSelect('ink', 'Ink', GLook.INKS.map(([k, l]) => [k, l]))}</div></details>`;
             h += `<details class="acc" data-acc="pmar" ${accOpen('pmar')}><summary>Margins</summary><div class="acc-body">${prSelect('mStyle', 'Margin lines', [['none', 'None'], ['single', 'Single line'], ['double', 'Double line']])}
                 ${pv('mStyle') === 'none' ? '' : `<div class="sw-grid">${GLook.MARGINS.map(([k, l, c]) => `<button class="swatch dotm ${pv('mColor') === k ? 'on' : ''}" title="${l}" data-act="pr-set" data-k="mColor" data-v="${k}" style="--sw:rgb(${c.join(',')})"></button>`).join('')}</div>${prSwitch('mTop', 'Top margin')}${prSlider('mTopIn', 'Top margin depth', 0.6, 2, 0.1, ' in')}${prSwitch('mSide', 'Side margin')}`}</div></details>`;
-        } else h += `<p class="hint">Choose Paper above to customise the page colour, dots, margins and texture.</p>`;
+        } else if (GLook.NATURE[look] || look === 'aurora') h += `<p class="hint">Choose Paper above to customise the page colour, dots, margins and texture.</p>`;
         h += `<details class="acc" data-acc="blur" ${accOpen('blur')}><summary>Blur and glass</summary><div class="acc-body">${slider('bg-blur', 'Background blur', 40, Math.min(40, prefs.bgBlur))}${slider('glass-blur', 'Glass frosting (cards and panels)', 30, Math.min(30, prefs.glassBlur))}<p class="hint">Background blur affects only the page behind everything. Glass frosting affects the cards, sheets and menu bar.</p></div></details>`;
         h += `<details class="acc" data-acc="bgp" ${accOpen('bgp')}><summary>Wallpaper photo and speed</summary><div class="acc-body"><button class="btn-line btn-accent" data-act="pick-bg">${hasBg ? 'Change' : 'Choose'} wallpaper photo</button>${hasBg ? '<button class="btn-line" data-act="clear-bg">Remove wallpaper</button>' : ''}${sw('lite', 'Lite mode', 'No blur or motion. Faster on older phones.')}</div></details></div>`;
         return h;
@@ -1631,7 +1649,8 @@
             case 'defaults': defaultsSheet(); break;
             case 'rebase': rebaseSheet(); break;
             case 'toggle': { ev.stopPropagation(); const o = prefs.open || []; prefs.open = o.indexOf(id) >= 0 ? o.filter(x => x !== id) : o.concat([id]); persist(); renderPlan(); break; }
-            case 'look': prefs.look = el.dataset.v; persist(); render(); break;
+            case 'accent': prefs.accent = el.dataset.v === 'gold' ? 'gold' : 'sapphire'; persist(); render(); break;
+            case 'look': prefs.look = el.dataset.v; GLook.remember(prefs); persist(); render(); break;
             case 'pr-set': prefs.p = Object.assign({}, prefs.p, { [el.dataset.k]: el.dataset.v }); persist(); render(); break;
             case 'task-add': D.cfg ? taskSheet(0, +el.dataset.parent || 0) : cfgSheet(); break;
             case 'task': taskDetail(id); break;
@@ -1679,6 +1698,7 @@
         const el = ev.target.closest('[data-pref]'); if (!el) return;
         const k = el.dataset.pref;
         prefs[k] = el.type === 'checkbox' ? el.checked : el.value; persist();
+        if (k === 'follow' && el.checked) followNow();
         if (k === 'rememberPass' && !el.checked) { prefs.pass = ''; persist(); }
         render();
     });
@@ -1698,7 +1718,7 @@
         const d = ev.target; if (!d || !d.matches || !d.matches('details[data-acc]')) return;
         const k = d.dataset.acc, a = (prefs.acc || []).filter(x => x !== k); if (d.open) a.push(k); prefs.acc = a; persist();
     }, true);
-    try { const mq = matchMedia('(prefers-color-scheme: dark)'); (mq.addEventListener ? mq.addEventListener('change', () => applyTheme()) : mq.addListener(() => applyTheme())); } catch (e) {}
+    try { const mq = matchMedia('(prefers-color-scheme: dark)'); (mq.addEventListener ? mq.addEventListener('change', () => followNow()) : mq.addListener(() => followNow())); } catch (e) {}
     $('file-bg').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) processWallpaper(f); };
     $('file-restore').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) restoreFile(f); };
 

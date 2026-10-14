@@ -1,7 +1,7 @@
 Rustam's Goal Manager, version 5
 
 Put ALL these files in your goal-manager GitHub repository (replace the old ones), then open the app twice so your phone picks up the update. Your data stays.
-Files: index.html, style.css, engine.js, look.js, insight.js, app.js, sw.js, manifest.webmanifest, icon-192.png, icon-512.png, icon-maskable-512.png
+Files: index.html, style.css, flagship.css, engine.js, look.js, insight.js, app.js, sw.js, manifest.webmanifest, icon-192.png, icon-512.png, icon-maskable-512.png, and the new folder fonts/ (six small font files).
 
 What is new in version 3
 - Plan is organised by chapter: Reading (Skim, Scan), Drafting (parts, themes, pieces) and Editing and proofreading.
@@ -117,3 +117,14 @@ v5.14 - Page icons are shorter and wider, like real pages. About five show at on
 
 v5.15 - Companion effects. Parts of the spectre body now fade in and out softly, like light through glass (never the face). A soft band of light and a soft band of shadow travel round the outline of every character, and parts of the outline fade away. Every 10 to 20 seconds the brightest part of the outline "catches the light" with a short flare. Settings, Circle Companion: "Glass effects" (Rich, Light, Off), "Lens flare style" (Soft or Photographic, a real starburst from the owner's own image), "Catch the light" on or off. Lite mode and reduced motion switch it all off.
       New: "Movement style when it avoids text" (Springy, Glide, Float, Hop, Dart) and "Speed of that movement" (Slow, Normal, Fast). Cache v5-15.
+
+v5.16 - Flagship theme, dark themes, no more jumping.
+      New: "Version 5.16" is shown just under the app title.
+      Fixed: the sheets (log pages, amounts, keypad) no longer jump. They are pinned to the top, so they only grow downwards; the page behind is frozen while a sheet is open; the keyboard no longer moves them.
+      New: the Companion now avoids text inside sheets and keypads too. It never moves while your hands are on the keypad. If nowhere is clear it waits in the dim strip above the sheet.
+      New: the Flagship theme, now the default. Calm precision and airy clarity: refined frosted glass, thin large numbers and titles with light small text (never bold), soft rounded shapes, one soft light from the top left, slow and silky motion with no bounce. Light and dark versions. Accent: Sapphire or Champagne Gold. Optional "Soft glow" (a faint glow on the lower edge of cards, buttons and bars). Letters: phone default (San Francisco or Roboto), Inter, Manrope or Arial.
+      New: five dark themes: Royal Gold, Midnight Forest, Deep Ocean, Ember Dusk, Graphite. Look is sorted into Light themes and Dark themes.
+      Changed: themes are now fixed. A light theme stays light and a dark theme stays dark, whatever your phone is set to. Optional "Follow my phone" switches between your last light theme and your last dark theme (first dark: Flagship Dark if your light theme is Flagship, otherwise Graphite).
+      Changed: a Paper look you never customised moves to Flagship once. A customised Paper page stays as it is.
+      IMPORTANT: also copy the new file flagship.css and the folder fonts/ into your repository.
+      Credits: Inter and Manrope fonts, SIL Open Font License 1.1 (fontsource.org). Cache v5-16.
