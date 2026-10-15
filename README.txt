@@ -144,3 +144,8 @@ v5.18 - Today against yesterday, a torn-paper note, and a phone that follows Fla
       New: the habits card also tells you in which part of the day you work most, and your average entry.
       Every entry already stores its date and time, so speed and habits are worked out from all of them.
       Cache v5-18. Copy ALL files, including flagship.css, look.js, feel.js and the fonts/ folder.
+
+v5.19 - Note and "yesterday" refinements.
+      Changed: the torn note is now old white paper with a yellow tint, half as tall, and says "Last time you stopped at page 145".
+      Changed: no separate today/yesterday card. Under the daily bars in the Today panel there is one slim line: pages today, a thin mark for yesterday, and a gold part when you pass yesterday. Tap it and the Companion explains.
+      Cache v5-19.

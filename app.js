@@ -906,7 +906,7 @@
         const delta = T.buffer - T.planned, bt = T.buffer < 0 || delta < -0.5 ? 'bad' : delta > 0.5 ? 'good' : '', pl = Math.max(1, T.planned), bf = Math.max(0, Math.min(1, T.buffer / (pl * 1.5))), mk = Math.min(1, pl / (pl * 1.5));
         const gauge = `<div class="tp-gauge ${bt}" ${tt(`Your buffer is ${Math.round(T.buffer)} days. ${delta < -0.5 ? dN(delta) + ' lost since the start.' : delta > 0.5 ? dN(delta) + ' gained.' : 'It is all yours.'}`, bt)}><span class="muted">Buffer</span><div class="tp-gtrack"><i style="width:${(bf * 100).toFixed(1)}%"></i><u style="left:${(mk * 100).toFixed(1)}%"></u></div><b class="num">${Math.round(T.buffer)} d</b><span class="tp-sh">${bt === 'bad' ? '▼' : bt === 'good' ? '▲' : '●'}</span></div>`;
         const sub = one ? (one.done >= one.goal - 0.05 ? 'Goal done' : N(one.goal - one.done) + ' to go') : goalItems.length ? (hit === goalItems.length ? 'All done' : goalItems.length - hit + ' to do') : PP.active.length ? 'No pace set' : 'Not started';
-        return `<div class="card tp"><div class="tp-top"><div class="tp-ringwrap" ${tt(ringTell, ringTone)}>${ringSvg}</div><div class="tp-side"><div class="safe-lbl">Today</div><div class="tp-sub">${sub}</div><div class="tp-chips">${chips.slice(0, 3).join('')}</div></div></div>${strip}${road}${gauge}</div>`;
+        return `<div class="card tp"><div class="tp-top"><div class="tp-ringwrap" ${tt(ringTell, ringTone)}>${ringSvg}</div><div class="tp-side"><div class="safe-lbl">Today</div><div class="tp-sub">${sub}</div><div class="tp-chips">${chips.slice(0, 3).join('')}</div></div></div>${strip}${tideLine()}${road}${gauge}</div>`;
     }
     // ---- today against yesterday, and where the last sitting ended
     function dayQty(n) { let q = 0, u = ''; D.logs.forEach(l => { if ((l.day ? E.dn(l.day) : E.dn(E.localKey(l.ts))) === n) { q += l.qty; const t = trackOf(l.goal); if (t && t.unit) u = t.unit; } }); return { q, u }; }
@@ -919,14 +919,17 @@
         const t = trackOf(ls.goal);
         return { page: at, qty: ls.qty, unit: (t && t.unit) || 'pages', ts: ls.ts, goal: ls.goal };
     }
-    function pairCard() {
-        const a = dayQty(D.todayN), b = dayQty(D.todayN - 1), u = a.u || b.u || 'pages', mx = Math.max(a.q, b.q, 1);
-        const say = `Today you did ${N(a.q)} ${u}. Yesterday you did ${N(b.q)}. ${a.q >= b.q && a.q > 0 ? 'You are ahead of yesterday.' : a.q === 0 ? 'Nothing logged yet today.' : N(b.q - a.q) + ' more to match yesterday.'}`;
-        return `<div class="card pair" data-tell="${esc(say)}"><div class="pair-num"><span>${N(a.q)}</span><span class="sl">/</span><small>${N(b.q)}</small></div><div class="pair-side"><div class="pair-lbl">${esc(u)} today / yesterday</div><div class="pair-bars"><i class="t"><b style="width:${a.q / mx * 100}%"></b></i><i class="y"><b style="width:${b.q / mx * 100}%"></b></i></div></div></div>`;
+    function tideLine() {
+        const a = dayQty(D.todayN), b = dayQty(D.todayN - 1), u = a.u || b.u || 'pages', mx = Math.max(a.q, b.q, 1) * 1.12;
+        const ahead = a.q > b.q, diff = N(Math.abs(b.q - a.q));
+        const note = a.q === 0 && b.q === 0 ? 'Start today' : ahead ? `▲ ${diff} more than yesterday` : a.q === b.q ? 'Same as yesterday' : `${diff} to match yesterday`;
+        const say = `Today you did ${N(a.q)} ${u}. Yesterday you did ${N(b.q)}. ${a.q === 0 && b.q === 0 ? 'Nothing logged yet.' : ahead ? 'You are ahead of yesterday. The gold part is your extra.' : a.q === b.q ? 'The same as yesterday.' : diff + ' more ' + u + ' will match yesterday.'}`;
+        const bp = b.q / mx * 100;
+        return `<div class="tide" data-tell="${esc(say)}"><div class="tide-top"><span class="tide-n">${N(a.q)}</span><span class="tide-u">${esc(u)} today</span><span class="tide-d ${ahead ? 'good' : ''}">${note}</span></div><div class="tide-track"><i class="tide-fill" style="width:${Math.min(a.q, b.q) === a.q ? a.q / mx * 100 : a.q / mx * 100}%"></i>${ahead ? `<i class="tide-beat" style="left:${bp}%;width:${(a.q - b.q) / mx * 100}%"></i>` : ''}<b class="tide-mark" style="left:${bp}%;--sh:${bp < 14 ? '-10%' : bp > 86 ? '-90%' : '-50%'}"><em>yesterday ${N(b.q)}</em></b></div></div>`;
     }
     function tornStrip() {
         const L = lastSitting(); if (!L) return '';
-                const txt = L.unit === 'pages' ? `You finished reading page <b>${N(L.page)}</b> last sitting` : `Last sitting you ended at <b>${N(L.page)}</b> ${esc(L.unit)}`;
+                const txt = L.unit === 'pages' ? `Last time you stopped at page <b>${N(L.page)}</b>` : `Last time you stopped at <b>${N(L.page)}</b> ${esc(L.unit)}`;
         return `<div class="torn-wrap" data-tell="Your last entry was ${N(L.qty)} ${esc(L.unit)}. Tap Log history to see all of them." data-act="hist"><div class="torn">${txt}</div></div>`;
     }
     function renderToday() {
@@ -939,7 +942,7 @@
             if (!hasPlan) {
                 h += `<div class="card"><h3>Next step</h3><p class="hint">Your timeline is set: ${dN(J.daysToTarget)} to the year-${J.target} target. Build your thesis outline in Plan and tick what you have already finished.</p><button class="btn-line btn-accent" data-act="goto" data-s="plan">Open Plan</button></div>`;
             } else {
-                h += tornStrip() + todayPanel(PP, T, J) + pairCard();
+                h += tornStrip() + todayPanel(PP, T, J);
             }
         }
         h += histCard();
