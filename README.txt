@@ -135,3 +135,12 @@ v5.17 - Visible buttons, calmer colours, a cooler phone.
       Changed: the other light themes are paler and more muted, with only a slight gradient. Aurora's colour haze is half as strong; the nature themes have a lighter sky and a soft veil over the scenery.
       Cooler phone (nothing removed): the main heat came from the frosted-glass blur being redone for every card under the moving Companion many times a second. On smooth backgrounds (Flagship, dark themes, Aurora, Paper, nature themes without a wallpaper photo) the blur could not be seen anyway, so cards use a slightly more frosted tint instead. The nav bar, sheets and speech bubbles keep the live blur, and so does any look with a wallpaper photo. The Companion now draws its resting animation about 20 times a second (it was 30), remembers where the words on the page are instead of scanning every word several times a second, and checks for text every 0.6 second. The soft colour haze no longer has an extra blur layer. In my test the idle load fell from about 85% to about 35% of one core (laptop test, so expect smaller numbers on a phone).
       Cache v5-17.
+
+v5.18 - Today against yesterday, a torn-paper note, and a phone that follows Flagship.
+      New: a small card under the Today panel shows pages done today / yesterday (for example 11/23) with two slim bars. Tap it to hear the numbers.
+      New: a yellow torn-paper strip above the Today panel: "You finished reading page 143 last sitting". It uses your last entry and your "last page" notes. Tap it to open the log history.
+      New: Settings > Sounds has a separate "Glass tap sound" switch. The other sounds stay on.
+      Changed: "Follow my phone" now always uses Flagship Light and Flagship Dark.
+      New: the habits card also tells you in which part of the day you work most, and your average entry.
+      Every entry already stores its date and time, so speed and habits are worked out from all of them.
+      Cache v5-18. Copy ALL files, including flagship.css, look.js, feel.js and the fonts/ folder.

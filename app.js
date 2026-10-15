@@ -908,6 +908,27 @@
         const sub = one ? (one.done >= one.goal - 0.05 ? 'Goal done' : N(one.goal - one.done) + ' to go') : goalItems.length ? (hit === goalItems.length ? 'All done' : goalItems.length - hit + ' to do') : PP.active.length ? 'No pace set' : 'Not started';
         return `<div class="card tp"><div class="tp-top"><div class="tp-ringwrap" ${tt(ringTell, ringTone)}>${ringSvg}</div><div class="tp-side"><div class="safe-lbl">Today</div><div class="tp-sub">${sub}</div><div class="tp-chips">${chips.slice(0, 3).join('')}</div></div></div>${strip}${road}${gauge}</div>`;
     }
+    // ---- today against yesterday, and where the last sitting ended
+    function dayQty(n) { let q = 0, u = ''; D.logs.forEach(l => { if ((l.day ? E.dn(l.day) : E.dn(E.localKey(l.ts))) === n) { q += l.qty; const t = trackOf(l.goal); if (t && t.unit) u = t.unit; } }); return { q, u }; }
+    function lastSitting() {
+        const ls = D.logs.slice().sort((a, b) => b.ts - a.ts)[0]; if (!ls) return null;
+        let at = 0; const evs = [];
+        D.logs.filter(l => l.goal === ls.goal).forEach(l => evs.push({ ts: l.ts, q: l.qty }));
+        (D.poses || []).filter(p => p.goal === ls.goal).forEach(p => evs.push({ ts: p.ts, pg: p.page }));
+        evs.sort((a, b) => a.ts - b.ts).forEach(x => { if (x.pg !== undefined) at = x.pg; else at += x.q; });
+        const t = trackOf(ls.goal);
+        return { page: at, qty: ls.qty, unit: (t && t.unit) || 'pages', ts: ls.ts, goal: ls.goal };
+    }
+    function pairCard() {
+        const a = dayQty(D.todayN), b = dayQty(D.todayN - 1), u = a.u || b.u || 'pages', mx = Math.max(a.q, b.q, 1);
+        const say = `Today you did ${N(a.q)} ${u}. Yesterday you did ${N(b.q)}. ${a.q >= b.q && a.q > 0 ? 'You are ahead of yesterday.' : a.q === 0 ? 'Nothing logged yet today.' : N(b.q - a.q) + ' more to match yesterday.'}`;
+        return `<div class="card pair" data-tell="${esc(say)}"><div class="pair-num"><span>${N(a.q)}</span><span class="sl">/</span><small>${N(b.q)}</small></div><div class="pair-side"><div class="pair-lbl">${esc(u)} today / yesterday</div><div class="pair-bars"><i class="t"><b style="width:${a.q / mx * 100}%"></b></i><i class="y"><b style="width:${b.q / mx * 100}%"></b></i></div></div></div>`;
+    }
+    function tornStrip() {
+        const L = lastSitting(); if (!L) return '';
+                const txt = L.unit === 'pages' ? `You finished reading page <b>${N(L.page)}</b> last sitting` : `Last sitting you ended at <b>${N(L.page)}</b> ${esc(L.unit)}`;
+        return `<div class="torn-wrap" data-tell="Your last entry was ${N(L.qty)} ${esc(L.unit)}. Tap Log history to see all of them." data-act="hist"><div class="torn">${txt}</div></div>`;
+    }
     function renderToday() {
         const el = $('s-today'); let h = '';
         const PP = P();
@@ -918,7 +939,7 @@
             if (!hasPlan) {
                 h += `<div class="card"><h3>Next step</h3><p class="hint">Your timeline is set: ${dN(J.daysToTarget)} to the year-${J.target} target. Build your thesis outline in Plan and tick what you have already finished.</p><button class="btn-line btn-accent" data-act="goto" data-s="plan">Open Plan</button></div>`;
             } else {
-                h += todayPanel(PP, T, J);
+                h += tornStrip() + todayPanel(PP, T, J) + pairCard();
             }
         }
         h += histCard();
@@ -1151,6 +1172,15 @@
         });
         return h + '</div>';
     }
+    // when in the day you work, and how fast you go, from the time of every entry
+    function dayPartLine() {
+        const B = [['morning', 5, 12, 0], ['afternoon', 12, 17, 0], ['evening', 17, 22, 0], ['night', 22, 29, 0]];
+        const logs = D.logs.filter(l => l.qty > 0); if (logs.length < 6) return '';
+        logs.forEach(l => { let h = new Date(l.ts).getHours(); if (h < 5) h += 24; const b = B.find(x => h >= x[1] && h < x[2]); if (b) b[3] += l.qty; });
+        const tot = B.reduce((a, b) => a + b[3], 0); if (!tot) return '';
+        const top = B.slice().sort((a, b) => b[3] - a[3])[0], perSit = tot / logs.length;
+        return `<div class="hint mt">Most of your work happens in the <b>${top[0]}</b> (${Math.round(top[3] / tot * 100)}%). An average entry is ${N(perSit)} ${esc((trackOf(logs[0].goal) || {}).unit || 'pages')}.</div>`;
+    }
     function habitCard() {
         if (!IN || prefs.learnOn === false) return '';
         if (IN.act < 5) return `<div class="card"><h3>Your work habits</h3><p class="hint">After about two weeks of entries, this card shows your strongest and weakest days.</p></div>`;
@@ -1158,7 +1188,7 @@
         const cells = IN.days28.map(d => `<i class="${d.on ? 'on' : d.rest ? 'rest' : ''}" title="${fmtDNum(d.n)}"></i>`).join('');
         return `<div class="card"><h3>Your work habits</h3><div class="bars7 wk">${order.map((w, i) => `<div class="b7"><i class="${IN.strong === w ? 'hit' : ''} ${IN.weak === w ? 'low' : ''}" style="height:${Math.max(4, IN.rate[w] * 100)}%;--d:${i * 70}ms"></i><span>${WDS[w]}</span></div>`).join('')}</div>
             ${IN.enough && IN.strong !== null ? `<div class="hint mt">You work most on <b>${WDN[IN.strong]}s</b> and least on <b>${WDN[IN.weak]}s</b>. Put your hardest piece on a ${WDN[IN.strong]}, and keep ${WDN[IN.weak]} for light tasks.</div>` : '<div class="hint mt">Your days look even so far. More entries will show a pattern.</div>'}
-            <div class="heat mt">${cells}</div><div class="hint">Last 28 days. Filled squares are days you worked.</div></div>`;
+            <div class="heat mt">${cells}</div><div class="hint">Last 28 days. Filled squares are days you worked.</div>${dayPartLine()}</div>`;
     }
     function dataCard() {
         let kb = 0; try { kb = Math.round((localStorage.getItem(K_EV) || '').length / 1024); } catch (e) {}
