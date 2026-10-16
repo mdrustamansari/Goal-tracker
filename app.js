@@ -5,6 +5,8 @@
     const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     const DAY = E.DAY;
     const $ = id => document.getElementById(id);
+    // a screen is only rebuilt when what it shows has really changed: no needless repaint (and no re-blur of the glass) on the quiet minute refresh
+    function put(el, h) { if (el.__h === h && el.firstChild) return false; el.__h = h; el.innerHTML = h; return true; }
     const fmt = n => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
     const fmt2 = n => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
     const money = n => (n < 0 ? '-' : '') + '₹' + fmt(Math.abs(Math.round(n)));
@@ -435,7 +437,7 @@
                 <div class="grid2 mt"><button class="btn-line" data-act="ms-add" data-id="${l.id}">Add a step</button><button class="btn-line" data-act="life-edit" data-id="${l.id}">Edit</button></div></div>`;
         });
         if (!D.life.length) h += `<div class="card"><p class="hint">Add a goal such as "Family", then small, concrete steps with dates: talk to relatives and friends about meeting someone, a health check-up, visiting a place you want to live. These steps do not wait for the thesis.</p></div>`;
-        $('s-life').innerHTML = h;
+        put($('s-life'), h);
     }
 
     const sw = (k, t, d) => `<div class="sw-row"><div><div>${t}</div>${d ? `<div class="set-meta">${d}</div>` : ''}</div><label class="switch"><input type="checkbox" data-pref="${k}" ${prefs[k] ? 'checked' : ''}><i></i></label></div>`;
@@ -576,7 +578,7 @@
         if (customs.length) h += `<div class="card"><h3>Custom tasks</h3>${customs.map(p => pieceRow(p, 0)).join('')}</div>`;
         if (D.tasks.length) h += `<div class="card"><h3>Earlier daily tasks</h3><p class="tight">Quantity-based tasks from before. They still count in their own pace.</p>${D.tasks.map(t => `<div class="ol-row ol-plan" data-act="task" data-id="${t.id}"><span class="ol-chev">📅</span><span class="ol-title">${esc(t.g.title)} · ${N(t.done)}/${N(t.total)} ${esc(t.unit)}</span>${statusChip(t)}</div>`).join('')}</div>`;
         h += `<button class="btn-line" data-act="defaults">Default days for each kind of piece</button>`;
-        $('s-plan').innerHTML = h;
+        put($('s-plan'), h);
     }
 
     /* ---------- finishing, undoing, bulk ticks ---------- */
@@ -927,10 +929,16 @@
         const bp = b.q / mx * 100;
         return `<div class="tide" data-tell="${esc(say)}"><div class="tide-top"><span class="tide-n">${N(a.q)}</span><span class="tide-u">${esc(u)} today</span><span class="tide-d ${ahead ? 'good' : ''}">${note}</span></div><div class="tide-track"><i class="tide-fill" style="width:${Math.min(a.q, b.q) === a.q ? a.q / mx * 100 : a.q / mx * 100}%"></i>${ahead ? `<i class="tide-beat" style="left:${bp}%;width:${(a.q - b.q) / mx * 100}%"></i>` : ''}<b class="tide-mark" style="left:${bp}%;--sh:${bp < 14 ? '-10%' : bp > 86 ? '-90%' : '-50%'}"><em>yesterday ${N(b.q)}</em></b></div></div>`;
     }
+    const whenWords = ts => {
+        const d = new Date(ts), t0 = new Date().setHours(0, 0, 0, 0), days = Math.round((t0 - new Date(ts).setHours(0, 0, 0, 0)) / 864e5);
+        const tm = d.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit', hour12: true });
+        const day = days <= 0 ? 'today' : days === 1 ? 'yesterday' : days < 7 ? 'on ' + d.toLocaleDateString('en-GB', { weekday: 'long' }) : 'on ' + d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+        return `${day} at ${tm}`;
+    };
     function tornStrip() {
         const L = lastSitting(); if (!L) return '';
-                const txt = L.unit === 'pages' ? `Last time you stopped at page <b>${N(L.page)}</b>` : `Last time you stopped at <b>${N(L.page)}</b> ${esc(L.unit)}`;
-        return `<div class="torn-wrap" data-tell="Your last entry was ${N(L.qty)} ${esc(L.unit)}. Tap Log history to see all of them." data-act="hist"><div class="torn">${txt}</div></div>`;
+                const txt = L.unit === 'pages' ? `You last stopped at page <b>${N(L.page)}</b>, ${whenWords(L.ts)}.` : `You last stopped at <b>${N(L.page)}</b> ${esc(L.unit)}, ${whenWords(L.ts)}.`;
+        return `<div class="torn-wrap" data-tell="Your last entry was ${N(L.qty)} ${esc(L.unit)}. Tap Log history to see all of them." data-act="hist"><div class="torn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4z"/><path d="M9 4v12"/></svg><span>${txt}</span></div></div>`;
     }
     function renderToday() {
         const el = $('s-today'); let h = '';
@@ -960,7 +968,7 @@
         if (active.length) h += `<div class="list-header"><span>Daily tasks</span><span class="hint">tap + to log</span></div><div id="cats">${active.map(taskRow).join('')}</div>`;
         const nx = D.life.flatMap(l => l.ms.filter(m => !m.done && m.due).map(m => ({ l, m }))).sort((a, b) => a.m.daysLeft - b.m.daysLeft)[0];
         if (nx) h += `<div class="card tap" data-act="goto" data-s="life"><h3>Beyond the thesis</h3><div class="row"><span>${esc(nx.m.title)}</span><b class="num ${nx.m.daysLeft < 0 ? 'bad' : ''}">${nx.m.daysLeft < 0 ? dN(nx.m.daysLeft) + ' overdue' : nx.m.daysLeft === 0 ? 'today' : dN(nx.m.daysLeft)}</b></div><div class="hint">${esc(nx.l.title)}</div></div>`;
-        el.innerHTML = h;
+        put(el, h);
     }
 
     function recsList() {
@@ -1016,7 +1024,7 @@
                 ${D.leaves.map(l => `<div class="ledger-row"><span>Leave ${fmtDNshort(E.dn(l.from))}${l.to !== l.from ? ' to ' + fmtDNshort(E.dn(l.to)) : ''}${l.reason ? ' · ' + esc(l.reason) : ''}</span><span class="muted">${dN(E.dn(l.to) - E.dn(l.from) + 1)}</span></div>`).join('')}</div>`;
         }
         if (has) h += `<button class="btn-line" data-act="rebase">Re-baseline the plan</button>`;
-        $('s-out').innerHTML = h;
+        put($('s-out'), h);
     }
 
     /* ---------- Settings: look ---------- */
@@ -1069,7 +1077,7 @@
         if (window.GFeel) h += window.GFeel.settingsHTML();
         h += foldCard(`<div class="card"><h3>Security</h3><p class="hint">The PIN keeps people out of the app. Backups are encrypted with their own password.</p>${pin ? sw('autoLock', 'Lock when I leave the app') : ''}<button class="btn-line" data-act="pin-set">${pin ? 'Change PIN' : 'Set a PIN'}</button>${pin ? '<button class="btn-line" data-act="pin-off">Remove PIN</button>' : ''}</div>`, 'set-sec', false);
         h += foldCard(`<div class="card"><h3>Backup</h3><p class="hint">${prefs.lastBackup ? 'Last backup ' + fmtDT(prefs.lastBackup) : 'Not backed up yet.'} Share opens your phone's share sheet: choose Google Drive or Proton Drive.</p><button class="btn-line btn-accent" data-act="backup" data-m="share">Back up now (share)</button><button class="btn-line" data-act="backup" data-m="download">Save to Downloads</button><button class="btn-line" data-act="backup" data-m="plain">Share unencrypted copy</button><button class="btn-line" data-act="restore">Restore from a file</button>${sw('rememberPass', 'Remember backup password', 'Stored on this phone only.')}<button class="btn-line" data-act="erase" style="color:var(--warning)">Erase everything</button></div>`, 'set-bak', true);
-        $('s-set').innerHTML = h;
+        put($('s-set'), h);
         const bb = $('bg-blur'), gb = $('glass-blur');
         if (bb) bb.oninput = () => { prefs.bgBlur = +bb.value; $('bg-blur-v').textContent = bb.value; applyTheme(); persist(); };
         if (gb) gb.oninput = () => { prefs.glassBlur = +gb.value; $('glass-blur-v').textContent = gb.value; document.documentElement.style.setProperty('--glass-blur', gb.value + 'px'); persist(); };
@@ -1759,6 +1767,7 @@
     function showSplash() {
         const s = $('splash'); if (!prefs.introOn || reduced()) return;
         $('s-hi').textContent = prefs.greetOn ? greeting() : "Rustam's Goal Manager";
+        { const v = $('app-ver'), sv = $('s-ver'); if (v && sv) sv.textContent = v.textContent; }
         $('s-sub').textContent = !D.cfg ? "Let's set up your timeline" : (D.thesis && D.tasks.length ? `${Math.round(D.thesis.buffer)} days of buffer` : "Let's plan your work");
         s.classList.add('show');
         const close = () => { clearTimeout(showSplash._t); s.classList.remove('show'); };

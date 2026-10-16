@@ -149,3 +149,11 @@ v5.19 - Note and "yesterday" refinements.
       Changed: the torn note is now old white paper with a yellow tint, half as tall, and says "Last time you stopped at page 145".
       Changed: no separate today/yesterday card. Under the daily bars in the Today panel there is one slim line: pages today, a thin mark for yesterday, and a gold part when you pass yesterday. Tap it and the Companion explains.
       Cache v5-19.
+
+v5.20 - Real frosted glass everywhere, a much cooler phone.
+      Changed: every theme (Flagship, dark, Aurora, Paper, nature) has the real live frosted glass again, as in v5.15. Nothing is switched off.
+      Cooler phone, nothing removed: the Companion no longer redraws when nothing changes. While the page scrolls or you type it holds its picture; when you pause it moves about 10 times a second; after about 9 seconds of stillness it rests and stirs for a moment now and then. Moods, props, pokes and moves are still drawn at once. Its busy moves are capped at 30 pictures a second (60 only while you drag it). Snow and rain move in smooth small steps. Test on a laptop: with the glass on, the Companion at rest cost 1% of a core, against about 70-85% before.
+      Changed: the note under the header is now a soft old-paper note that matches the app, with the time in natural words: "You last stopped at page 145, yesterday at 8:40 pm."
+      Changed: the yesterday mark under the daily bars is darker and clear on Flagship light.
+      New: the Welcome screen shows the app version.
+      Cache v5-20. Copy ALL files (companion.js, look.js, flagship.css, style.css, app.js, index.html, sw.js, feel.js).
