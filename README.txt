@@ -157,3 +157,9 @@ v5.20 - Real frosted glass everywhere, a much cooler phone.
       Changed: the yesterday mark under the daily bars is darker and clear on Flagship light.
       New: the Welcome screen shows the app version.
       Cache v5-20. Copy ALL files (companion.js, look.js, flagship.css, style.css, app.js, index.html, sw.js, feel.js).
+
+v5.21 - A livelier Companion that rests and wakes gently, and a cooler phone.
+      Changed: the Companion no longer jumps between still and moving. Its own clock slows to a stop and starts again softly, and it stirs for about 4 seconds every 12 to 25 seconds. It also checks how hard it is working for your phone (and your battery) and draws less often if needed.
+      Removed: the photographic lens flare. Only the gentle bloom is left (the file is much smaller).
+      Log history: Edit and Delete are now small icons with a tooltip. Delete asks first, then still offers Undo.
+      The note at the top is now a simple, flat banner.

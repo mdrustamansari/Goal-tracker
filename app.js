@@ -144,6 +144,9 @@
         const first = box.querySelector('[autofocus]'); if (first && !(opts && opts.noFocus)) setTimeout(() => { try { first.focus(); } catch (e) {} }, 60);
     }
     function closeSheet() { $('sheet-bg').classList.remove('show'); const f = sheetCloser; sheetCloser = null; if (f) f(); }
+    // Icon-only Edit (Lucide square-pen) and Delete (Lucide trash-2): same size, tooltip and spoken label
+    const ICO = { edit: '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>', del: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/>' };
+    const icoBtn = (kind, attrs, what) => `<button type="button" class="ico-btn ico-${kind}" ${attrs} title="${kind === 'edit' ? 'Edit' : 'Delete'}" aria-label="${kind === 'edit' ? 'Edit' : 'Delete'} ${what}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICO[kind]}</svg></button>`;
     function confirmSheet(o) {
         return new Promise(res => {
             sheet(`<h2>${esc(o.title)}</h2><p>${esc(o.sub || '')}</p><div class="modal-actions"><button class="btn-secondary" data-r="0">${esc(o.cancel || 'Cancel')}</button><button class="${o.danger ? 'btn-danger' : 'btn-primary'}" data-r="1">${esc(o.ok || 'OK')}</button></div>`, box => {
@@ -938,7 +941,7 @@
     function tornStrip() {
         const L = lastSitting(); if (!L) return '';
                 const txt = L.unit === 'pages' ? `You last stopped at page <b>${N(L.page)}</b>, ${whenWords(L.ts)}.` : `You last stopped at <b>${N(L.page)}</b> ${esc(L.unit)}, ${whenWords(L.ts)}.`;
-        return `<div class="torn-wrap" data-tell="Your last entry was ${N(L.qty)} ${esc(L.unit)}. Tap Log history to see all of them." data-act="hist"><div class="torn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4z"/><path d="M9 4v12"/></svg><span>${txt}</span></div></div>`;
+        return `<div class="torn-wrap" data-tell="Your last entry was ${N(L.qty)} ${esc(L.unit)}. Tap Log history to see all of them." data-act="hist"><div class="torn"><span>${txt}</span></div></div>`;
     }
     function renderToday() {
         const el = $('s-today'); let h = '';
@@ -1267,7 +1270,7 @@
         const tm = ts => new Date(ts).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
         const row = x => { const inf = logInfo(x.goal);
             if (x.k === 'pos') return `<div class="hl-row hl-pos" data-hid="${x.id}"><div class="hl-main"><span class="hl-t">${tm(x.ts)}</span> <b>${esc(inf.title)}</b><div class="hint">Note: last ${unitWord(inf.unit, 1)} finished was ${N(x.e.page)}. Not counted as work.</div></div><div class="hl-b"><button type="button" class="mini-btn" data-hact="del">Delete</button></div></div>`;
-            return `<div class="hl-row" data-hid="${x.id}"><div class="hl-main"><span class="hl-t">${tm(x.ts)}</span> <b>${esc(inf.title)}</b>${x.e.late ? '<span class="lg-late">added later</span>' : ''}<div class="hl-amt"><b>${N(x.e.qty)}</b> ${esc(inf.unit)}</div></div><div class="hl-b"><button type="button" class="mini-btn" data-hact="edit">Edit</button><button type="button" class="mini-btn" data-hact="del">Delete</button></div></div>`; };
+            return `<div class="hl-row" data-hid="${x.id}"><div class="hl-main"><span class="hl-t">${tm(x.ts)}</span> <b>${esc(inf.title)}</b>${x.e.late ? '<span class="lg-late">added later</span>' : ''}<div class="hl-amt"><b>${N(x.e.qty)}</b> ${esc(inf.unit)}</div></div><div class="hl-b">${icoBtn('edit', 'data-hact="edit"', 'this entry')}${icoBtn('del', 'data-hact="del"', 'this entry')}</div></div>`; };
         sheet(`<h2>Log history</h2><p class="hint">Newest first. Fix a wrong amount or delete a wrong entry. Everything is recalculated.</p>
             ${goals.length > 1 ? `<label class="field"><span>Show</span><select id="hl-f"><option value="0">All tasks</option>${goals.map(x => `<option value="${x.g}" ${x.g === histState.filter ? 'selected' : ''}>${esc(x.title)}</option>`).join('')}</select></label>` : ''}
             ${days.length ? days.map(d => `<div class="hl-day">${esc(hd(d))}</div>${d.list.map(row).join('')}`).join('') : '<p class="hint">Nothing logged in this period yet.</p>'}
@@ -1279,7 +1282,9 @@
             box.querySelectorAll('.hl-row').forEach(r => {
                 const id = +r.dataset.hid, ent = all.find(x => x.id === id); if (!ent) return;
                 const del = r.querySelector('[data-hact="del"]'), ed = r.querySelector('[data-hact="edit"]'), e0 = ent.e;
-                del.onclick = () => {
+                del.onclick = async () => {
+                    const inf0 = logInfo(ent.goal);
+                    if (!(await confirmSheet({ title: 'Delete this entry?', sub: ent.k === 'pos' ? 'This note will be removed.' : `${N(e0.qty)} ${inf0.unit} will be removed and your totals recalculated. You can undo straight after.`, ok: 'Delete', danger: true }))) { historySheet(undefined, true); return; }
                     add({ t: 'void', target: id }); render(); historySheet(undefined, true); if (window.GFeel) GFeel.moment('down');
                     const inf = logInfo(ent.goal);
                     toast(ent.k === 'pos' ? 'Note deleted.' : `Deleted ${N(e0.qty)} ${inf.unit}. Everything is recalculated.`, () => { const c = Object.assign({}, e0); delete c.id; delete c.ts; add(c, e0.ts); render(); if ($('sheet-bg').classList.contains('show') && $('sheet').querySelector('.hl-day')) historySheet(undefined, true); });
