@@ -169,3 +169,8 @@ v5.22 - One banner with tips, smart sections, clearer edit buttons.
       New: Smart sections. After two weeks the app folds sections you have not opened for three weeks under "More". Switch it off in Settings.
       Fixed: the Save button text was invisible on light themes. Log history now has a Cancel button, and the note row uses the same bin icon.
       New file: DESIGN-LANGUAGE.md, the design rules shared by all your apps.
+
+Update (17 Oct 2026, later): The Lens flare style list is gone (only the gentle bloom remains, so there is nothing to choose). Tips in the top banner now use normal upright type. Every button now has a visible edge on all themes, including the Companion's question box and the More button. Checked on all 10 themes and every tab.
+
+v5.24 - Every button is visible on every theme.
+      Fixed (checked with your real backup on all 10 themes): the small buttons "New daily task", "Choose another piece", "Last finished: N · change" and "Log history" now have a hairline edge. The info chips (streak, pace, percent) have an edge too, and their text is darker on light themes.
