@@ -163,3 +163,9 @@ v5.21 - A livelier Companion that rests and wakes gently, and a cooler phone.
       Removed: the photographic lens flare. Only the gentle bloom is left (the file is much smaller).
       Log history: Edit and Delete are now small icons with a tooltip. Delete asks first, then still offers Undo.
       The note at the top is now a simple, flat banner.
+
+v5.22 - One banner with tips, smart sections, clearer edit buttons.
+      New: the top banner now shows "last finished" (info icon) and, now and then, a tip or proverb (bulb icon). The text slides up inside the banner. The separate tip block is gone.
+      New: Smart sections. After two weeks the app folds sections you have not opened for three weeks under "More". Switch it off in Settings.
+      Fixed: the Save button text was invisible on light themes. Log history now has a Cancel button, and the note row uses the same bin icon.
+      New file: DESIGN-LANGUAGE.md, the design rules shared by all your apps.

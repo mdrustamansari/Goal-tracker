@@ -6,7 +6,7 @@
     const DAY = E.DAY;
     const $ = id => document.getElementById(id);
     // a screen is only rebuilt when what it shows has really changed: no needless repaint (and no re-blur of the glass) on the quiet minute refresh
-    function put(el, h) { if (el.__h === h && el.firstChild) return false; el.__h = h; el.innerHTML = h; return true; }
+    function put(el, h) { if (el.__h === h && el.firstChild) return false; el.__h = h; el.innerHTML = h; if (window.GSections) GSections.apply(el); return true; }
     const fmt = n => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 });
     const fmt2 = n => Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
     const money = n => (n < 0 ? '-' : '') + '₹' + fmt(Math.abs(Math.round(n)));
@@ -25,7 +25,7 @@
     const K_EV = 'gl_events', K_PREF = 'gl_prefs', K_PIN = 'gl_pin', K_BG = 'gl_bg';
     const PREF_DEFAULT = () => ({
         theme: 'auto', bgBlur: 0, glassBlur: 20,
-        introOn: true, greetOn: true, lineOn: true, animOn: true, lossOn: true, gainOn: true,
+        introOn: true, greetOn: true, lineOn: true, smartOn: true, animOn: true, lossOn: true, gainOn: true,
         remindOn: true, remindHour: 21, remindSnooze: null, lastBackup: null,
         lite: false, privacy: false, ageOn: false, autoLock: true, rememberPass: false, pass: '',
         look: 'flagship', accent: 'sapphire', glow: false, flFont: 'system', follow: false, lastLight: null, lastDark: null, p: {}, acc: [], defDays: {}, open: [], orbMode: 'header', learnOn: true
@@ -419,7 +419,7 @@
         if (!D.cfg) { $('s-life').innerHTML = '<div class="card"><p class="hint">Set your timeline first (Settings).</p></div>'; return; }
         const J = D.jrf, T = D.thesis; let h = '';
         const purpose = D.cfg.purpose ? esc(D.cfg.purpose) : 'the life beyond the thesis';
-        h += `<div class="card"><h3>Time</h3>
+        h += `<div class="card" data-sec="life:time"><h3>Time</h3>
             <div class="row"><span class="muted">Since the JRF began</span><b class="num">${dN(J.elapsed)}</b></div>
             <div class="row"><span class="muted">To the year-${J.target} target</span><b class="num">${dN(J.daysToTarget)}</b></div>
             <div class="row"><span class="muted">To the end of the JRF</span><b class="num">${dN(J.daysToEnd)}</b></div>
@@ -430,7 +430,7 @@
             else if (T.slip < -0.5) oc = `You have banked ${dN(-T.slip)}. That is time that can go to ${purpose}.`;
             else oc = `Your buffer is intact: ${Math.round(T.planned)} days set aside for ${purpose}.`;
         } else oc = `Your plan sets aside ${Math.round(T.planned)} days of the fifth year for ${purpose}.`;
-        h += `<div class="card"><h3>What the buffer is for</h3><p style="font-family:var(--font-serif);font-size:1.15rem;line-height:1.4">${oc}</p><button class="btn-line" data-act="cfg">Edit what my fifth year is for</button></div>`;
+        h += `<div class="card" data-sec="life:what-the-buffer-is-for"><h3>What the buffer is for</h3><p style="font-family:var(--font-serif);font-size:1.15rem;line-height:1.4">${oc}</p><button class="btn-line" data-act="cfg">Edit what my fifth year is for</button></div>`;
         h += `<div class="list-header"><span>Life goals</span><button class="mini-btn" data-act="life-add">Add</button></div>`;
         D.life.forEach(l => {
             h += `<div class="card"><div class="row"><h3 style="margin:0">${esc(l.title)}</h3><span class="chip">${esc(l.cat)}</span></div>
@@ -578,8 +578,8 @@
             h += `</div></div>`;
         });
         const customs = PP.list.filter(p => p.g.custom);
-        if (customs.length) h += `<div class="card"><h3>Custom tasks</h3>${customs.map(p => pieceRow(p, 0)).join('')}</div>`;
-        if (D.tasks.length) h += `<div class="card"><h3>Earlier daily tasks</h3><p class="tight">Quantity-based tasks from before. They still count in their own pace.</p>${D.tasks.map(t => `<div class="ol-row ol-plan" data-act="task" data-id="${t.id}"><span class="ol-chev">📅</span><span class="ol-title">${esc(t.g.title)} · ${N(t.done)}/${N(t.total)} ${esc(t.unit)}</span>${statusChip(t)}</div>`).join('')}</div>`;
+        if (customs.length) h += `<div class="card" data-sec="plan:custom-tasks"><h3>Custom tasks</h3>${customs.map(p => pieceRow(p, 0)).join('')}</div>`;
+        if (D.tasks.length) h += `<div class="card" data-sec="plan:earlier-daily-tasks"><h3>Earlier daily tasks</h3><p class="tight">Quantity-based tasks from before. They still count in their own pace.</p>${D.tasks.map(t => `<div class="ol-row ol-plan" data-act="task" data-id="${t.id}"><span class="ol-chev">📅</span><span class="ol-title">${esc(t.g.title)} · ${N(t.done)}/${N(t.total)} ${esc(t.unit)}</span>${statusChip(t)}</div>`).join('')}</div>`;
         h += `<button class="btn-line" data-act="defaults">Default days for each kind of piece</button>`;
         put($('s-plan'), h);
     }
@@ -939,9 +939,10 @@
         return `${day} at ${tm}`;
     };
     function tornStrip() {
-        const L = lastSitting(); if (!L) return '';
+        const L = lastSitting(), next = () => { lineBump++; return pickLine(); };
+        if (!L) return GBanner.html({ last: null, tips: prefs.lineOn, next });
                 const txt = L.unit === 'pages' ? `You last stopped at page <b>${N(L.page)}</b>, ${whenWords(L.ts)}.` : `You last stopped at <b>${N(L.page)}</b> ${esc(L.unit)}, ${whenWords(L.ts)}.`;
-        return `<div class="torn-wrap" data-tell="Your last entry was ${N(L.qty)} ${esc(L.unit)}. Tap Log history to see all of them." data-act="hist"><div class="torn"><span>${txt}</span></div></div>`;
+        return GBanner.html({ last: { html: txt, tell: `Your last entry was ${N(L.qty)} ${L.unit}. Tap Log history to see all of them.`, act: 'hist' }, tips: prefs.lineOn, next });
     }
     function renderToday() {
         const el = $('s-today'); let h = '';
@@ -958,8 +959,7 @@
         }
         h += histCard();
         h += chainCard();
-        if (prefs.lineOn) { const [q, k] = pickLine(); h += `<div class="daily-line" data-act="line"><span class="q">“</span><div class="t">${esc(q)}<span class="k">${esc(k)}</span></div></div>`; }
-        if (PP.onTimeRun >= 3) h += `<div class="streak" style="margin:0 0 10px 4px">🔥 ${plural(PP.onTimeRun, 'piece')} in a row finished on time</div>`;
+        if (PP.onTimeRun >= 3) h += `<div class="streak" data-sec="today:streak" style="margin:0 0 10px 4px">🔥 ${plural(PP.onTimeRun, 'piece')} in a row finished on time</div>`;
         if (PP.list.length && PP.pickMode) h += pickToday(PP);
         else if (PP.list.length) {
             h += `<div class="list-header"><span>Working on</span><span class="hint">tap Done on the day you finish</span></div>`;
@@ -970,7 +970,7 @@
         const active = D.tasks.filter(t => t.started && !t.finished).sort((a, b) => (b.status === 'behind') - (a.status === 'behind'));
         if (active.length) h += `<div class="list-header"><span>Daily tasks</span><span class="hint">tap + to log</span></div><div id="cats">${active.map(taskRow).join('')}</div>`;
         const nx = D.life.flatMap(l => l.ms.filter(m => !m.done && m.due).map(m => ({ l, m }))).sort((a, b) => a.m.daysLeft - b.m.daysLeft)[0];
-        if (nx) h += `<div class="card tap" data-act="goto" data-s="life"><h3>Beyond the thesis</h3><div class="row"><span>${esc(nx.m.title)}</span><b class="num ${nx.m.daysLeft < 0 ? 'bad' : ''}">${nx.m.daysLeft < 0 ? dN(nx.m.daysLeft) + ' overdue' : nx.m.daysLeft === 0 ? 'today' : dN(nx.m.daysLeft)}</b></div><div class="hint">${esc(nx.l.title)}</div></div>`;
+        if (nx) h += `<div class="card tap" data-sec="today:beyond-the-thesis" data-act="goto" data-s="life"><h3>Beyond the thesis</h3><div class="row"><span>${esc(nx.m.title)}</span><b class="num ${nx.m.daysLeft < 0 ? 'bad' : ''}">${nx.m.daysLeft < 0 ? dN(nx.m.daysLeft) + ' overdue' : nx.m.daysLeft === 0 ? 'today' : dN(nx.m.daysLeft)}</b></div><div class="hint">${esc(nx.l.title)}</div></div>`;
         put(el, h);
     }
 
@@ -998,7 +998,7 @@
         if (!D.cfg) { $('s-out').innerHTML = '<div class="card"><p class="hint">Set your timeline first (Settings).</p></div>'; return; }
         const J = D.jrf, T = D.thesis, PP = P(); let h = '';
         const has = PP.list.length > 0;
-        h += `<div class="card"><h3>Your five years</h3>${timelineHtml()}
+        h += `<div class="card" data-sec="out:your-five-years"><h3>Your five years</h3>${timelineHtml()}
             <div class="row mt"><span class="muted">Year ${J.target} target</span><b class="num">${fmtDNum(J.targetN)}</b></div>
             <div class="row"><span class="muted">JRF ends</span><b class="num">${fmtDNum(J.endN)}</b></div>
             ${has ? `<div class="row"><span class="muted">Plan as set finishes</span><b class="num ${T.baseN > J.targetN ? 'bad' : 'good'}">${fmtDNum(T.baseN)}</b></div>
@@ -1007,7 +1007,7 @@
         h += learnedCard() + habitCard();
         if (has) {
             const net = T.slip;
-            h += `<div class="card"><h3>If you continue like this</h3>
+            h += `<div class="card" data-sec="out:if-you-continue-like-this"><h3>If you continue like this</h3>
                 <p class="${net > 0.5 || T.toTarget > 0.5 ? 'bad' : 'good'}" style="font-size:1.15rem;font-family:var(--font-serif)">${net > 0.5 ? `Delays have already cost ${dN(net)}. The fifth-year buffer is ${Math.round(T.buffer)} days, down from ${Math.round(T.planned)}.` : net < -0.5 ? `You are ${dN(-net)} ahead of the plan. The fifth-year buffer is ${Math.round(T.buffer)} days, up from ${Math.round(T.planned)}.` : `You are on the plan. The fifth-year buffer is ${Math.round(T.buffer)} days.`}${T.toTarget > 0.5 ? ` The work ends ${dN(T.toTarget)} after the year-${J.target} target.` : ''}</p>
                 <p class="tight">Pieces follow one another on a single clock, so every day a piece runs over moves all later pieces. Each day a piece finishes early comes back as time.</p>`;
             [...D.goals.values()].filter(g => g.chap).sort((a, b) => a.id - b.id).forEach(c => { const a = PP.agg.get(c.id); if (!a || !a.count) return; const w = Math.min(100, Math.abs(a.slip) / 60 * 100); h += `<div class="env"><div class="top"><span>${esc(c.title)}</span><b class="${a.slip > 0.5 ? 'bad' : a.slip < -0.5 ? 'good' : ''}">${a.doneCount === a.count ? 'done' : slipText(a.slip)}</b></div><div class="slipbar"><i style="width:${a.doneCount === a.count ? 100 : w}%;background:${a.slip > 0.5 ? 'var(--warning)' : '#2da872'}"></i></div></div>`; });
@@ -1021,7 +1021,7 @@
         }
         const ledger = D.tasks.flatMap(t => t.ledger.map(l => ({ t, l })));
         if (ledger.length || D.leave.size || PP.rebases.length) {
-            h += `<div class="card"><h3>Slip ledger</h3><p class="tight">Re-plans, re-baselines and leave days stay on record. The buffer only recovers by finishing work early.</p>
+            h += `<div class="card" data-sec="out:slip-ledger"><h3>Slip ledger</h3><p class="tight">Re-plans, re-baselines and leave days stay on record. The buffer only recovers by finishing work early.</p>
                 ${PP.rebases.map(r => `<div class="ledger-row"><span>Plan re-baselined ${fmtK(E.localKey(r.ts))}</span><span>${dN(r.forgiven)} forgiven</span></div>`).join('')}
                 ${ledger.map(({ t, l }) => `<div class="ledger-row"><span>${esc(t.g.title)} · re-planned ${fmtDNshort(l.dayN)}</span><span>${N(l.backlog)} ${esc(t.unit)} (${dN(l.slipDays)})</span></div>`).join('')}
                 ${D.leaves.map(l => `<div class="ledger-row"><span>Leave ${fmtDNshort(E.dn(l.from))}${l.to !== l.from ? ' to ' + fmtDNshort(E.dn(l.to)) : ''}${l.reason ? ' · ' + esc(l.reason) : ''}</span><span class="muted">${dN(E.dn(l.to) - E.dn(l.from) + 1)}</span></div>`).join('')}</div>`;
@@ -1074,7 +1074,7 @@
         let h = `<div class="card"><h3>Timeline</h3>${D.cfg ? `<div class="row"><span class="muted">JRF began</span><b class="num">${fmtK(D.cfg.start)}</b></div><div class="row"><span class="muted">Main work due</span><b class="num">${fmtDNum(D.jrf.targetN)}</b></div>` : ''}<button class="btn-line btn-accent" data-act="cfg">${D.cfg ? 'Edit timeline' : 'Set up timeline'}</button><button class="btn-line" data-act="leave">Declare leave days</button>
             <div class="sw-row"><div><div>Work order</div><div class="set-meta">Chapter by chapter (reading and drafting), or all reading then all drafting. All editing and proofreading always comes last.</div></div><select class="set-select" data-cfgorder>${[['chapter', 'Chapter by chapter'], ['phase', 'Phase by phase'], ['custom', 'Custom: I choose the next piece']].map(([v, l]) => `<option value="${v}" ${((D.cfg && D.cfg.order) || 'chapter') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></div></div>`;
         h += lookCard();
-        h += foldCard(`<div class="card"><h3>Experience</h3>${sw('introOn', 'Opening screen')}${sw('greetOn', 'Greeting by name')}${sw('lineOn', 'Daily line')}${sw('animOn', 'Slow task glide')}${sw('lossOn', 'Show the cost of delay', 'Days lost from the buffer on Today.')}${sw('gainOn', 'Show the reward of early work', 'Days of freedom banked on Today.')}${sw('ageOn', 'Show my age on the Life tab', 'Needs your birth date in the timeline.')}${sw('remindOn', 'Evening and backup reminders', 'Banners in the app. A web app cannot ring while closed.')}</div>`, 'set-exp', false);
+        h += foldCard(`<div class="card"><h3>Experience</h3>${sw('introOn', 'Opening screen')}${sw('greetOn', 'Greeting by name')}${sw('lineOn', 'Tips in the top banner', 'Proverbs and tips slide in now and then.')}${sw('smartOn', 'Smart sections', 'Sections you rarely open fold under More. The app learns for two weeks first.')}${sw('animOn', 'Slow task glide')}${sw('lossOn', 'Show the cost of delay', 'Days lost from the buffer on Today.')}${sw('gainOn', 'Show the reward of early work', 'Days of freedom banked on Today.')}${sw('ageOn', 'Show my age on the Life tab', 'Needs your birth date in the timeline.')}${sw('remindOn', 'Evening and backup reminders', 'Banners in the app. A web app cannot ring while closed.')}</div>`, 'set-exp', false);
         h += foldCard(dataCard(), 'set-data', false);
         if (window.GCompanion) h += window.GCompanion.settingsHTML();
         if (window.GFeel) h += window.GFeel.settingsHTML();
@@ -1159,7 +1159,7 @@
         const dots = IN.days28.slice(-7).map(d => `<i class="${d.on ? 'on' : d.rest ? 'rest' : ''} ${d.n === D.todayN ? 'now' : ''}"></i>`).join('');
         const msg = IN.atRisk ? `Work a little today to keep your chain. Another missed day would break it.` : IN.workedToday ? 'You worked today. The chain is safe.' : IN.restToday ? 'Leave day. Your chain waits for you.' : 'Work a little today to add a link.';
         const earned = IN.badges.filter(b => b.on);
-        return `<div class="card chain"><div class="row"><div><div class="safe-lbl">Work chain</div><div class="chain-n"><span class="flame ${IN.streak >= 3 ? 'lit' : ''}">🔥</span><b data-count="${IN.streak}" data-ck="chain">${IN.streak}</b><span class="hint"> ${IN.streak === 1 ? 'day' : 'days'} · best ${IN.best}</span></div></div><div class="dots7">${dots}</div></div>
+        return `<div class="card chain" data-sec="today:chain"><div class="row"><div><div class="safe-lbl">Work chain</div><div class="chain-n"><span class="flame ${IN.streak >= 3 ? 'lit' : ''}">🔥</span><b data-count="${IN.streak}" data-ck="chain">${IN.streak}</b><span class="hint"> ${IN.streak === 1 ? 'day' : 'days'} · best ${IN.best}</span></div></div><div class="dots7">${dots}</div></div>
             <div class="hint mt">${msg}</div><div class="hint">One missed day is forgiven. Leave days never break the chain.</div>
             ${earned.length ? `<div class="badges">${earned.map(b => `<span class="chip good">★ ${esc(b.label)}</span>`).join('')}</div>` : ''}</div>`;
     }
@@ -1255,7 +1255,7 @@
         td.forEach(x => { const u = logInfo(x.goal).unit; by[u] = (by[u] || 0) + x.e.qty; });
         return td.length ? 'Today: ' + Object.keys(by).map(u => N(by[u]) + ' ' + u).join(', ') + ' · ' + plural(td.length, 'entry').replace(/entrys/, 'entries') : 'Last entry: ' + fmtK(all.sort((a, b) => b.ts - a.ts)[0].day);
     }
-    function histCard() { const sm = histSummary(); return sm ? `<div class="card tap" data-act="hist" data-tell="Everything you logged, by day. You can fix a wrong entry there."><h3>Log history</h3><div class="row"><span>${esc(sm)}</span><b>›</b></div></div>` : ''; }
+    function histCard() { const sm = histSummary(); return sm ? `<div class="card tap" data-sec="today:log-history" data-act="hist" data-tell="Everything you logged, by day. You can fix a wrong entry there."><h3>Log history</h3><div class="row"><span>${esc(sm)}</span><b>›</b></div></div>` : ''; }
     function historySheet(filterId, keep) {
         const prevScroll = keep ? $('sheet').scrollTop : 0;
         let all = histEntries(); if (filterId !== undefined && !keep) { histState.filter = filterId && all.some(x => x.goal === filterId) ? filterId : 0; histState.days = 14; }
@@ -1269,7 +1269,7 @@
             const nm = keyDate(d.day).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }).replace(',', ''); return `${nm}${logs.length ? ' · ' + Object.keys(by).map(u => N(by[u]) + ' ' + u).join(', ') + ' · ' + (logs.length === 1 ? '1 entry' : logs.length + ' entries') : ''}`; };
         const tm = ts => new Date(ts).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
         const row = x => { const inf = logInfo(x.goal);
-            if (x.k === 'pos') return `<div class="hl-row hl-pos" data-hid="${x.id}"><div class="hl-main"><span class="hl-t">${tm(x.ts)}</span> <b>${esc(inf.title)}</b><div class="hint">Note: last ${unitWord(inf.unit, 1)} finished was ${N(x.e.page)}. Not counted as work.</div></div><div class="hl-b"><button type="button" class="mini-btn" data-hact="del">Delete</button></div></div>`;
+            if (x.k === 'pos') return `<div class="hl-row hl-pos" data-hid="${x.id}"><div class="hl-main"><span class="hl-t">${tm(x.ts)}</span> <b>${esc(inf.title)}</b><div class="hint">Note: last ${unitWord(inf.unit, 1)} finished was ${N(x.e.page)}. Not counted as work.</div></div><div class="hl-b">${icoBtn('del', 'data-hact="del"', 'this note')}</div></div>`;
             return `<div class="hl-row" data-hid="${x.id}"><div class="hl-main"><span class="hl-t">${tm(x.ts)}</span> <b>${esc(inf.title)}</b>${x.e.late ? '<span class="lg-late">added later</span>' : ''}<div class="hl-amt"><b>${N(x.e.qty)}</b> ${esc(inf.unit)}</div></div><div class="hl-b">${icoBtn('edit', 'data-hact="edit"', 'this entry')}${icoBtn('del', 'data-hact="del"', 'this entry')}</div></div>`; };
         sheet(`<h2>Log history</h2><p class="hint">Newest first. Fix a wrong amount or delete a wrong entry. Everything is recalculated.</p>
             ${goals.length > 1 ? `<label class="field"><span>Show</span><select id="hl-f"><option value="0">All tasks</option>${goals.map(x => `<option value="${x.g}" ${x.g === histState.filter ? 'selected' : ''}>${esc(x.title)}</option>`).join('')}</select></label>` : ''}
@@ -1291,8 +1291,9 @@
                 };
                 if (ed) ed.onclick = () => {
                     const amt = r.querySelector('.hl-amt'), inf = logInfo(ent.goal);
-                    amt.innerHTML = `<input type="number" inputmode="decimal" step="any" min="0" class="hl-in" value="${e0.qty}"> ${esc(inf.unit)} <button type="button" class="mini-btn btn-accent" data-hact="ok">Save</button>`;
+                    amt.innerHTML = `<input type="number" inputmode="decimal" step="any" min="0" class="hl-in" value="${e0.qty}"> ${esc(inf.unit)} <button type="button" class="mini-btn btn-accent" data-hact="ok">Save</button> <button type="button" class="mini-btn" data-hact="cancel">Cancel</button>`;
                     ed.style.display = 'none'; const inp = amt.querySelector('input'); inp.focus(); inp.select();
+                    amt.querySelector('[data-hact="cancel"]').onclick = () => historySheet(undefined, true);
                     amt.querySelector('[data-hact="ok"]').onclick = () => {
                         const v = parseFloat(inp.value); if (!(v > 0)) { toast('Enter an amount above 0'); return; }
                         if (v === e0.qty) { historySheet(undefined, true); return; }
@@ -1429,6 +1430,7 @@
         return D;
     }
     function render() {
+        if (!render.gs && window.GSections) { render.gs = 1; GSections.init({ app: 'goal', enabled: () => prefs.smartOn !== false }); }
         lockPass(); applyTheme(); renderBanner();
         $('brand-sub').textContent = (prefs.greetOn ? greeting() + ' · ' : '') + fmtK(todayKey());
         document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.s === screen));
